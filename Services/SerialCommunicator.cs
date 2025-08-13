@@ -30,7 +30,7 @@ public class SerialCommunicator : IDisposable
 
         if (configuredPort == "AUTO" && autoDetect)
         {
-            _currentPortName = await DetectESP32PortAsync();
+            _currentPortName = DetectESP32Port();
         }
         else
         {
@@ -47,7 +47,7 @@ public class SerialCommunicator : IDisposable
         _reconnectTimer.Change(reconnectInterval, reconnectInterval);
     }
 
-    private async Task<string?> DetectESP32PortAsync()
+    private string? DetectESP32Port()
     {
         try
         {
@@ -214,7 +214,7 @@ public class SerialCommunicator : IDisposable
                 // Try auto-detection again
                 if (_configuration.GetValue<bool>("SystemMonitor:AutoDetectESP32", true))
                 {
-                    var newPort = await DetectESP32PortAsync();
+                    var newPort = DetectESP32Port();
                     if (!string.IsNullOrEmpty(newPort) && newPort != _currentPortName)
                     {
                         _currentPortName = newPort;
