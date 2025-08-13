@@ -15,6 +15,18 @@
       "group": {
         "kind": "build",
         "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "icon": {
+        "id": "tools",
+        "color": "terminal.ansiBlue"
       }
     },
     {
@@ -39,7 +51,20 @@
         "--project",
         "${workspaceFolder}/SystemInfoMonitorService.csproj"
       ],
-      "problemMatcher": "$msCompile"
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "icon": {
+        "id": "eye",
+        "color": "terminal.ansiYellow"
+      },
+      "isBackground": true
     },
     {
       "label": "run-development",
@@ -52,7 +77,22 @@
         "--environment",
         "Development"
       ],
-      "problemMatcher": "$msCompile"
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "icon": {
+        "id": "play",
+        "color": "terminal.ansiGreen"
+      },
+      "runOptions": {
+        "runOn": "default"
+      }
     },
     {
       "label": "clean",

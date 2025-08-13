@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "formulahendry.dotnet-test-explorer",
+    "jmrog.vscode-nuget-package-manager",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-xml",
+    "aaron-bond.better-comments",
+    "gruntfuggly.todo-tree",
+    "ms-vscode.powershell",
+    "spmeesseman.vscode-taskexplorer"
+  ]
+}

@@ -6,7 +6,6 @@
   "editor.formatOnPaste": true,
   "editor.formatOnType": true,
   "editor.detectIndentation": false,
-  
   // C# specific settings
   "[csharp]": {
     "editor.tabSize": 2,
@@ -14,28 +13,24 @@
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "ms-dotnettools.csharp"
   },
-  
   // JSON specific settings
   "[json]": {
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
     "editor.formatOnSave": true
   },
-  
   // XML specific settings (for .csproj files)
   "[xml]": {
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
     "editor.formatOnSave": true
   },
-  
   // Markdown specific settings
   "[markdown]": {
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
     "editor.formatOnSave": true
   },
-  
   // .NET and C# extensions settings
   "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
   "dotnet.inlayHints.enableInlayHintsForParameters": true,
@@ -46,24 +41,23 @@
   "dotnet.inlayHints.suppressInlayHintsForParametersThatDifferOnlyBySuffix": true,
   "dotnet.inlayHints.suppressInlayHintsForParametersThatMatchMethodIntent": true,
   "dotnet.inlayHints.suppressInlayHintsForParametersThatMatchArgumentName": true,
-  
   // File associations
   "files.associations": {
     "*.csproj": "xml"
   },
-  
   // Exclude build output from explorer
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,
     "**/.vs": true
   },
-  
   // Search exclude patterns
   "search.exclude": {
     "**/bin": true,
     "**/obj": true,
     "**/.vs": true,
     "**/node_modules": true
-  }
+  },
+  "task.autoDetect": "on",
+  "task.slowProviderWarning": false
 }
