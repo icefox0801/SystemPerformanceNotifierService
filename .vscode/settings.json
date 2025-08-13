@@ -59,5 +59,8 @@
     "**/node_modules": true
   },
   "task.autoDetect": "on",
-  "task.slowProviderWarning": false
+  "task.slowProviderWarning": false,
+  "task.quickOpen.showAll": true,
+  "task.problemMatchers.neverPrompt": true,
+  "workbench.statusBar.visible": true
 }
