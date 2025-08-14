@@ -21,7 +21,7 @@ A Windows service that collects and sends system information (CPU, GPU, RAM usag
 - Available USB port for ESP32
 
 ### ESP32 Hardware
-- ESP32 development board (ESP32-WROOM-32, NodeMCU-32S, etc.)
+- ESP32-S3-WROOM-1 ESP32-8048S050 development board
 - 20x4 I2C LCD display (HD44780 compatible)
 - USB cable (USB-A to Micro-USB or USB-C)
 - Jumper wires for LCD connection
@@ -99,4 +99,141 @@ Edit `appsettings.json`:
     "ESP32VendorId": "1A86",       // USB Vendor ID for detection
     "ESP32ProductId": "7523",      // USB Product ID for detection
     "AutoDetectESP32": true,       // Enable automatic ESP32 detection
-    "ReconnectInterval": 5000      // Reconnection attempt
+    "ReconnectInterval": 5000      // Reconnection attempt    "ReconnectInterval": 5000      // Reconnection attempt interval
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.Hosting.Lifetime": "Information"
+    }
+  }
+}
+```
+
+### ESP32 Configuration
+The ESP32 code automatically configures:
+- I2C LCD on pins SDA=21, SCL=22
+- UART on Serial0 at 115200 baud
+- JSON parsing and display updates
+
+## Example JSON Output
+
+The service sends JSON data to the ESP32 every second. Here's an example of the data format:
+
+```json
+{
+  "ts": 1755143472,
+  "cpu": {
+    "usage": 11,
+    "temp": 36,
+    "fan": 932,
+    "name": "Intel Core Ultra 7 265K"
+  },
+  "gpu": {
+    "usage": 2,
+    "temp": 36,
+    "name": "NVIDIA GeForce RTX 5070 Ti",
+    "mem_used": 4008,
+    "mem_total": 16303
+  },
+  "mem": {
+    "usage": 42,
+    "used": 26.378284,
+    "total": 63.409534,
+    "avail": 37.03125
+  }
+}
+```
+
+### Field Descriptions
+
+| Field | Type | Description | Unit |
+|-------|------|-------------|------|
+| `ts` | number | Unix timestamp | seconds |
+| `cpu.usage` | number | CPU usage percentage | % |
+| `cpu.temp` | number | CPU temperature | °C |
+| `cpu.fan` | number | CPU fan speed | RPM |
+| `cpu.name` | string | CPU model name | - |
+| `gpu.usage` | number | GPU usage percentage | % |
+| `gpu.temp` | number | GPU temperature | °C |
+| `gpu.name` | string | GPU model name | - |
+| `gpu.mem_used` | number | GPU memory used | MB |
+| `gpu.mem_total` | number | GPU memory total | MB |
+| `mem.usage` | number | RAM usage percentage | % |
+| `mem.used` | number | RAM used | GB |
+| `mem.total` | number | RAM total | GB |
+| `mem.avail` | number | RAM available | GB |
+
+## Project Structure
+
+```
+SystemMonitorService/
+├── Program.cs                 # Main application entry point
+├── SystemMonitorWorker.cs     # Background service worker
+├── Models/
+│   └── SystemInfo.cs         # Data transfer objects
+├── Services/
+│   ├── ISystemInfoCollector.cs
+│   ├── SystemInfoCollector.cs # Hardware monitoring logic
+│   └── SerialCommunicator.cs  # ESP32 communication
+├── Scripts/
+│   └── install-service.bat   # Service installation script
+└── README.md                 # This documentation
+```
+
+## Troubleshooting
+
+### Service Issues
+- Check Windows Event Log for service errors
+- Verify .NET 8.0 Runtime is installed
+- Run service installation as Administrator
+
+### ESP32 Connection Issues
+- Check USB cable and port
+- Verify ESP32 drivers are installed
+- Monitor serial output for connection messages
+
+### LCD Display Issues
+- Verify I2C wiring connections
+- Check LCD I2C address (default 0x27)
+- Test LCD with simple Arduino sketch first
+
+## Development
+
+### Building from Source
+```bash
+# Clone repository
+git clone https://github.com/icefox0801/SystemMonitorService
+cd SystemMonitorService
+
+# Build in development mode
+dotnet build
+
+# Run in development mode
+dotnet run --environment Development
+```
+
+### Hardware Compatibility
+- **Tested CPUs**: Intel Core Ultra 7 265K, AMD Ryzen series
+- **Tested GPUs**: NVIDIA RTX 5070 Ti, RTX 40 series
+- **Tested ESP32**: ESP32-S3-WROOM-1 ESP32-8048S050, ESP32-WROOM-32, ESP32-S3
+- **LCD Compatibility**: 20x4 I2C LCD with PCF8574 backpack
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## Support
+
+For issues and questions:
+- Open an issue on GitHub
+- Check existing documentation
+- Verify hardware setup and connections

@@ -103,8 +103,8 @@ Scripts\install-service.bat
 
 ## Hardware Requirements
 - **Windows**: 10/11 or Server 2019+
-- **ESP32**: Development board with USB connection
-- **Display**: 20x4 I2C LCD (HD44780 compatible)
+- **ESP32**: ESP32-S3-WROOM-1 ESP32-8048S050 development board with USB connection
+- **Display**: 20x4 I2C LCD (HD44780 compatible) 
 - **Connection**: USB-A to Micro-USB or USB-C cable
 
 ## Future Enhancements
