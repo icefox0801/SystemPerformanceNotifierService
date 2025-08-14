@@ -110,6 +110,16 @@
       "tooltip": "Clean build outputs",
       "alignment": "left",
       "priority": 96
+    },
+    {
+      "text": "$(terminal) Manage Service",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": [
+        "service-manager"
+      ],
+      "tooltip": "Manage the system service",
+      "alignment": "left",
+      "priority": 95
     }
   ],
   // Terminal settings

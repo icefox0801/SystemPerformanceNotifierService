@@ -103,6 +103,34 @@
         "${workspaceFolder}/SystemPerformanceNotifierService.csproj"
       ],
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "service-manager",
+      "command": "powershell.exe",
+      "type": "process",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/Scripts/service-manager.ps1"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "icon": {
+        "id": "server-process",
+        "color": "terminal.ansiMagenta"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     }
   ]
 }

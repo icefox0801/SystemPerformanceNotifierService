@@ -135,12 +135,13 @@ public class SerialCommunicator : IDisposable
 
       _logger.LogInformation("Connected to ESP32 on {Port} at {BaudRate} baud", portName, baudRate);
     }
-    catch (UnauthorizedAccessException ex)
+    catch (UnauthorizedAccessException)
     {
-      _logger.LogError("Port {Port} is already in use (possibly by serial monitor). Please close other applications using this port.", portName);
+      _logger.LogWarning("Port {Port} is in use by another process. Will retry when available.", portName);
       _serialPort?.Dispose();
       _serialPort = null;
-      throw new InvalidOperationException($"Port {portName} is already in use by another application", ex);
+
+      // Don't throw exception - let the reconnect timer handle retry
     }
     catch (Exception ex)
     {
@@ -376,6 +377,7 @@ public class SerialCommunicator : IDisposable
 
   private async void CheckConnection(object? state)
   {
+    // Check if we're not connected and have a port to connect to
     if (_serialPort?.IsOpen != true && !string.IsNullOrEmpty(_currentPortName))
     {
       try
@@ -400,11 +402,16 @@ public class SerialCommunicator : IDisposable
         }
       }
     }
-    else if (_serialPort?.IsOpen == true && (_readTask?.IsCompleted == true || _readTask == null))
+    else if (_serialPort?.IsOpen == true)
     {
+      // Connection is active - perform health checks
+
       // Restart reading task if it completed unexpectedly
-      _logger.LogDebug("Restarting ESP32 data reading task");
-      StartReadingIncomingData();
+      if (_readTask?.IsCompleted == true || _readTask == null)
+      {
+        _logger.LogDebug("Restarting ESP32 data reading task");
+        StartReadingIncomingData();
+      }
     }
   }
 
