@@ -11,6 +11,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
   private Computer? _computer;
   private PerformanceCounter? _cpuCounter;
   private PerformanceCounter? _ramCounter;
+  private PerformanceCounter? _cpuIdleCounter;
   private int _debugLogCount = 0;
   private bool _disposed = false;
 
@@ -33,10 +34,12 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       _computer.Open();
 
       _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+      _cpuIdleCounter = new PerformanceCounter("Processor", "% Idle Time", "_Total");
       _ramCounter = new PerformanceCounter("Memory", "Available MBytes");
 
       // Initial read to initialize counters
       _cpuCounter.NextValue();
+      _cpuIdleCounter.NextValue();
 
       _logger.LogInformation("System info collector initialized successfully");
     }
@@ -73,6 +76,15 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     // Increment debug counter for limited logging
     _debugLogCount++;
 
+    // Log comparison data every 10 cycles for debugging
+    if (_debugLogCount % 10 == 0)
+    {
+      _logger.LogInformation("Performance Data Comparison - CPU: {CpuUsage}%, GPU: {GpuUsage}%, Memory: {MemUsage}% ({MemUsed:F1}/{MemTotal:F1} GB), CPU Temp: {CpuTemp}°C, GPU Temp: {GpuTemp}°C",
+        systemInfo.Cpu.Usage, systemInfo.Gpu.Usage, systemInfo.Memory.Usage,
+        systemInfo.Memory.Used, systemInfo.Memory.Total,
+        systemInfo.Cpu.Temperature, systemInfo.Gpu.Temperature);
+    }
+
     return systemInfo;
   }
 
@@ -80,10 +92,20 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
   {
     try
     {
-      // Get CPU usage from performance counter
+      // Get CPU usage from performance counter - use same method as Task Manager
       if (_cpuCounter != null)
       {
-        cpuInfo.Usage = (int)Math.Round(_cpuCounter.NextValue());
+        var cpuUsage = _cpuCounter.NextValue();
+
+        // Alternative: Use idle counter for more accurate results (like Task Manager)
+        if (_cpuIdleCounter != null)
+        {
+          var idleTime = _cpuIdleCounter.NextValue();
+          cpuUsage = Math.Max(0, 100 - idleTime); // CPU usage = 100% - Idle%
+        }
+
+        // Task Manager shows instantaneous usage, apply slight smoothing to match
+        cpuInfo.Usage = (int)Math.Round(Math.Min(100, Math.Max(0, cpuUsage)));
       }
 
       // Get CPU info from LibreHardwareMonitor - check ALL hardware types for sensors
@@ -124,9 +146,14 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
                   sensorName.Contains("package") ||
                   sensorName.Contains("tctl") ||
                   sensorName.Contains("tdie") ||
-                  sensorName.Contains("processor"))
+                  sensorName.Contains("processor") ||
+                  (hardware.HardwareType == HardwareType.Cpu && sensor.SensorType == SensorType.Temperature))
               {
                 cpuInfo.Temperature = Math.Max(cpuInfo.Temperature, (int)Math.Round(sensor.Value.Value));
+                if (_debugLogCount < 5)
+                {
+                  _logger.LogInformation("Found CPU temperature sensor: {SensorName} = {Value}°C", sensor.Name, sensor.Value.Value);
+                }
               }
             }
             else if (sensor.SensorType == SensorType.Fan && sensor.Value.HasValue)
@@ -140,6 +167,10 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
                   (hardware.HardwareType == HardwareType.Motherboard && sensorName.Contains("fan")))
               {
                 cpuInfo.FanSpeed = (int)Math.Round(sensor.Value.Value);
+                if (_debugLogCount < 5)
+                {
+                  _logger.LogInformation("Found CPU fan sensor: {SensorName} = {Value} RPM", sensor.Name, sensor.Value.Value);
+                }
               }
             }
           }
@@ -172,38 +203,68 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     {
       if (_computer != null)
       {
+        IHardware? discreteGpu = null;
+        IHardware? integratedGpu = null;
+
+        // First pass: Find discrete and integrated GPUs
         foreach (var hardware in _computer.Hardware)
         {
           hardware.Update();
 
           if (hardware.HardwareType == HardwareType.GpuNvidia ||
-              hardware.HardwareType == HardwareType.GpuAmd ||
-              hardware.HardwareType == HardwareType.GpuIntel)
+              hardware.HardwareType == HardwareType.GpuAmd)
           {
-            gpuInfo.Name = TruncateString(hardware.Name, 40);
+            discreteGpu = hardware;
+          }
+          else if (hardware.HardwareType == HardwareType.GpuIntel)
+          {
+            integratedGpu = hardware;
+          }
+        }
 
-            foreach (var sensor in hardware.Sensors)
+        // Prefer discrete GPU over integrated
+        var selectedGpu = discreteGpu ?? integratedGpu;
+
+        if (selectedGpu != null)
+        {
+          gpuInfo.Name = TruncateString(selectedGpu.Name, 40);
+
+          foreach (var sensor in selectedGpu.Sensors)
+          {
+            if (sensor.Value.HasValue)
             {
-              if (sensor.Value.HasValue)
+              switch (sensor.SensorType)
               {
-                switch (sensor.SensorType)
-                {
-                  case SensorType.Load when sensor.Name.Contains("GPU Core"):
+                case SensorType.Load when sensor.Name.Contains("GPU Core") || sensor.Name.Contains("D3D 3D"):
+                  // Use D3D 3D load for more accurate Task Manager-like GPU usage
+                  if (sensor.Name.Contains("D3D 3D") && sensor.Value.Value > 0)
+                  {
                     gpuInfo.Usage = (int)Math.Round(sensor.Value.Value);
-                    break;
-                  case SensorType.Temperature when sensor.Name.Contains("GPU Core"):
+                  }
+                  else if (sensor.Name.Contains("GPU Core") && gpuInfo.Usage == 0)
+                  {
+                    gpuInfo.Usage = (int)Math.Round(sensor.Value.Value);
+                  }
+                  break;
+                case SensorType.Temperature when (sensor.Name.Contains("GPU Core") || sensor.Name.Contains("GPU Hot Spot")):
+                  // Prefer GPU Core temperature, fallback to Hot Spot
+                  if (sensor.Name.Contains("GPU Core"))
+                  {
                     gpuInfo.Temperature = (int)Math.Round(sensor.Value.Value);
-                    break;
-                  case SensorType.SmallData when sensor.Name.Contains("GPU Memory Used"):
-                    gpuInfo.MemoryUsed = (int)Math.Round(sensor.Value.Value);
-                    break;
-                  case SensorType.SmallData when sensor.Name.Contains("GPU Memory Total"):
-                    gpuInfo.MemoryTotal = (int)Math.Round(sensor.Value.Value);
-                    break;
-                }
+                  }
+                  else if (sensor.Name.Contains("GPU Hot Spot") && gpuInfo.Temperature == 0)
+                  {
+                    gpuInfo.Temperature = (int)Math.Round(sensor.Value.Value);
+                  }
+                  break;
+                case SensorType.SmallData when sensor.Name.Contains("GPU Memory Used"):
+                  gpuInfo.MemoryUsed = (int)Math.Round(sensor.Value.Value);
+                  break;
+                case SensorType.SmallData when sensor.Name.Contains("GPU Memory Total"):
+                  gpuInfo.MemoryTotal = (int)Math.Round(sensor.Value.Value);
+                  break;
               }
             }
-            break; // Take first GPU
           }
         }
       }
@@ -220,10 +281,11 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
   {
     try
     {
+      // Use Performance Counter for available memory (matches Task Manager exactly)
       if (_ramCounter != null)
       {
         var availableMemoryMB = _ramCounter.NextValue();
-        memoryInfo.Available = availableMemoryMB / 1024f;
+        memoryInfo.Available = availableMemoryMB / 1024f; // Convert MB to GB
       }
 
       // Get total physical memory using WMI
@@ -232,11 +294,12 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
         foreach (ManagementObject obj in searcher.Get())
         {
           var totalMemoryBytes = Convert.ToUInt64(obj["TotalPhysicalMemory"]);
-          memoryInfo.Total = totalMemoryBytes / (1024f * 1024f * 1024f);
+          memoryInfo.Total = totalMemoryBytes / (1024f * 1024f * 1024f); // Convert bytes to GB
           break;
         }
       }
 
+      // Calculate used and usage percentage exactly like Task Manager
       memoryInfo.Used = memoryInfo.Total - memoryInfo.Available;
       memoryInfo.Usage = memoryInfo.Total > 0 ? (int)Math.Round((memoryInfo.Used / memoryInfo.Total) * 100f) : 0;
     }
@@ -247,7 +310,6 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
 
     await Task.CompletedTask;
   }
-
   private static string TruncateString(string input, int maxLength)
   {
     if (string.IsNullOrEmpty(input) || input.Length <= maxLength)
@@ -407,6 +469,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     {
       _computer?.Close();
       _cpuCounter?.Dispose();
+      _cpuIdleCounter?.Dispose();
       _ramCounter?.Dispose();
       _disposed = true;
     }

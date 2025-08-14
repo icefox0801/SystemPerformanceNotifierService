@@ -30,24 +30,6 @@ A Windows service that collects and sends system information (CPU, GPU, RAM usag
 ### ESP32-S3 Display Interface
 The ESP32-S3-WROOM-1 ESP32-8048S050 features an integrated display that connects via internal interface (no external wiring required).
 
-### Display Layout
-```
-┌─────────── System Monitor - ESP32-S3 ───────────┐
-│ 📶 Connection Status        Last Update: Live   │
-├─────────────────┬───────────────────────────────┤
-│      CPU        │           GPU                 │
-│ Intel Core...   │   NVIDIA GeForce...           │
-│                 │                               │
-│ Usage    Temp   │ Usage   Memory    Temp        │
-│  ##%     ##°C   │  ##%     ##%      ##°C        │
-│         Fan     │                               │
-│       -- RPM    │                               │
-├─────────────────┴───────────────────────────────┤
-│              System Memory                      │
-│ Usage: ##%           (##.# GB / ##.# GB)        │
-└─────────────────────────────────────────────────┘
-```
-
 ## Quick Start
 
 ### 1. Setup Windows Service

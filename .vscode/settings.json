@@ -62,5 +62,79 @@
   "task.slowProviderWarning": false,
   "task.quickOpen.showAll": true,
   "task.problemMatchers.neverPrompt": true,
-  "workbench.statusBar.visible": true
+  "task.quickOpen.history": 10,
+  "task.saveBeforeRun": "always",
+  "workbench.statusBar.visible": true,
+  // Status bar task buttons
+  "statusbar_command.commands": [
+    {
+      "text": "$(tools) Build",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": [
+        "build"
+      ],
+      "tooltip": "Build the project",
+      "alignment": "left",
+      "priority": 100
+    },
+    {
+      "text": "$(play) Run Dev",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": [
+        "run-development"
+      ],
+      "tooltip": "Run in Development mode",
+      "alignment": "left",
+      "priority": 99
+    },
+    {
+      "text": "$(eye) Watch",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": [
+        "watch"
+      ],
+      "tooltip": "Run with file watching",
+      "alignment": "left",
+      "priority": 98
+    },
+    {
+      "text": "$(package) Publish",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": [
+        "publish"
+      ],
+      "tooltip": "Publish the project",
+      "alignment": "left",
+      "priority": 97
+    },
+    {
+      "text": "$(trash) Clean",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": [
+        "clean"
+      ],
+      "tooltip": "Clean build outputs",
+      "alignment": "left",
+      "priority": 96
+    }
+  ],
+  // Terminal settings
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "icon": "terminal-powershell"
+    },
+    "Command Prompt": {
+      "path": [
+        "${env:windir}\\Sysnative\\cmd.exe",
+        "${env:windir}\\System32\\cmd.exe"
+      ],
+      "args": [],
+      "icon": "terminal-cmd"
+    },
+    "Git Bash": {
+      "source": "Git Bash"
+    }
+  }
 }

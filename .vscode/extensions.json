@@ -1,14 +1,22 @@
 {
   "recommendations": [
+    // .NET Development Core
     "ms-dotnettools.csharp",
     "ms-dotnettools.vscode-dotnet-runtime",
+    "ms-dotnettools.csdevkit",
+    // Testing & Package Management
     "formulahendry.dotnet-test-explorer",
     "jmrog.vscode-nuget-package-manager",
+    // Language Support
     "ms-vscode.vscode-json",
     "redhat.vscode-xml",
+    // Code Quality & Documentation
     "aaron-bond.better-comments",
     "gruntfuggly.todo-tree",
+    "streetsidesoftware.code-spell-checker",
+    // Terminal & Tasks
     "ms-vscode.powershell",
-    "spmeesseman.vscode-taskexplorer"
+    "spmeesseman.vscode-taskexplorer",
+    "anweber.statusbar-commands"
   ]
 }
