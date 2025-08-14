@@ -414,13 +414,17 @@ function Show-ServiceStatus {
   Write-Host "======================" -ForegroundColor Cyan
   
   try {
-    $serialPorts = Get-WmiObject -Class Win32_SerialPort | Where-Object { 
-      $_.Description -match "USB|CH340|CP210|ESP32|Arduino" 
+    # Use CimInstance for better device detection
+    $serialPorts = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { 
+      $_.Name -match "COM\d+" -and 
+      ($_.Name -match "USB|CH340|CP210|ESP32|Arduino" -or 
+       $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
     }
     
     if ($serialPorts) {
       foreach ($port in $serialPorts) {
-        Write-Host "[OK] Found: $($port.Name) - $($port.Description)" -ForegroundColor Green
+        $comPort = if ($port.Name -match "(COM\d+)") { $matches[1] } else { "Unknown" }
+        Write-Host "[OK] Found: ${comPort} - $($port.Name)" -ForegroundColor Green
       }
     } else {
       Write-Host "[!] No ESP32/USB serial devices detected" -ForegroundColor Yellow
@@ -576,13 +580,17 @@ function Show-ServiceLogs {
   Write-Host "==================" -ForegroundColor Cyan
   
   try {
-    $ports = Get-WmiObject -Class Win32_SerialPort | Where-Object { 
-      $_.Description -match "USB|CH340|CP210|ESP32|Arduino|Serial" 
+    # Use CimInstance for better device detection  
+    $ports = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { 
+      $_.Name -match "COM\d+" -and 
+      ($_.Name -match "USB|CH340|CP210|ESP32|Arduino|Serial" -or 
+       $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
     }
     
     if ($ports) {
       foreach ($port in $ports) {
-        Write-Host "[OK] $($port.Name): $($port.Description)" -ForegroundColor Green
+        $comPort = if ($port.Name -match "(COM\d+)") { $matches[1] } else { "Unknown" }
+        Write-Host "[OK] ${comPort}: $($port.Name)" -ForegroundColor Green
       }
     } else {
       Write-Host "[!] No USB serial devices detected" -ForegroundColor Yellow
@@ -693,13 +701,17 @@ function Start-SystemDiagnostics {
   Write-Host "==================" -ForegroundColor Cyan
   
   try {
-    $serialPorts = Get-WmiObject -Class Win32_SerialPort -ErrorAction Stop | Where-Object { 
-      $_.Description -match "USB|CH340|CP210|ESP32|Arduino" 
+    # Use CimInstance for better device detection
+    $serialPorts = Get-CimInstance -ClassName Win32_PnPEntity -ErrorAction Stop | Where-Object { 
+      $_.Name -match "COM\d+" -and 
+      ($_.Name -match "USB|CH340|CP210|ESP32|Arduino" -or 
+       $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
     }
     
     if ($serialPorts) {
       foreach ($port in $serialPorts) {
-        Write-Status "ESP32 Device: $($port.Name) ($($port.Description))" "SUCCESS"
+        $comPort = if ($port.Name -match "(COM\d+)") { $matches[1] } else { "Unknown" }
+        Write-Status "ESP32 Device: ${comPort} ($($port.Name))" "SUCCESS"
       }
     } else {
       Write-Status "ESP32 Device: Not Detected (connect ESP32 via USB)" "WARN"

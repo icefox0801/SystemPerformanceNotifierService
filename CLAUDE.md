@@ -93,10 +93,20 @@ Scripts\install-service.bat
 ## Current Status
 - ✅ **Framework**: .NET 9.0 (latest)
 - ✅ **Build Status**: Clean compilation with minor async warning
-- ✅ **Hardware Detection**: Successfully detects ESP32 on COM3
+- ✅ **Hardware Detection**: Successfully detects ESP32 on COM3 (CH340 USB-Serial)
 - ✅ **System Monitoring**: CPU, GPU, RAM, and temperature collection working
 - ✅ **Serial Communication**: Stable 115200 baud connection
-- ✅ **Service Ready**: Can be installed as Windows service
+- ✅ **Service Installed**: Running as Windows service (Process ID: 50620)
+- ✅ **Auto-Start**: Configured for delayed automatic startup
+- ✅ **Data Transmission**: Successfully sending system info to ESP32 every 1 second
+- ✅ **Script Management**: Unified PowerShell script for all service operations
+
+### Service Installation Completed (August 14, 2025)
+- **Service Status**: RUNNING
+- **Memory Usage**: ~90 MB  
+- **ESP32 Connection**: COM3 (CH340 chip, VID: 1A86, PID: 7523)
+- **Installation Method**: Unified `service-manager.ps1` script
+- **Auto-Detection**: Working correctly with VID/PID matching
 
 ## Known Issues
 - Warning CS1998: `DetectESP32PortAsync` method lacks await operator (harmless - method uses synchronous ManagementObjectSearcher)
