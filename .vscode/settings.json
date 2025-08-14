@@ -45,12 +45,6 @@
   "files.associations": {
     "*.csproj": "xml"
   },
-  // Exclude build output from explorer
-  "files.exclude": {
-    "**/bin": true,
-    "**/obj": true,
-    "**/.vs": true
-  },
   // Search exclude patterns
   "search.exclude": {
     "**/bin": true,

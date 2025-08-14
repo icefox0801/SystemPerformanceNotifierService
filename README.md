@@ -1,6 +1,22 @@
 # System Monitor Service for ESP32
 
+> **Latest Update**: Service management has been simplified with a unified PowerShell script (`Scripts/service-manager.ps1`) that consolidates all operations into a single, user-friendly interface with both interactive menu and command-line support.
+
 A Windows service that collects and sends system information (CPU, GPU, RAM usage and temperatures) to an ESP32 development board via USB/Serial connection. Perfect for creating custom PC monitoring displays with LCD screens.
+
+## Table of Contents
+
+1. [Features](#features)
+2. [System Requirements](#system-requirements)
+3. [Hardware Setup](#hardware-setup)
+4. [Quick Start](#quick-start)
+5. [Service Management](#service-management)
+6. [ESP32 Arduino Code](#esp32-arduino-code)
+7. [Data Format](#data-format)
+8. [Troubleshooting](#troubleshooting)
+9. [Project Structure](#project-structure)
+10. [Script Management](#script-management)
+11. [Building from Source](#building-from-source)
 
 ## Features
 
@@ -45,13 +61,86 @@ dotnet restore
 ```
 
 #### Build and Install Service
-```bash
+```powershell
 # Build the project
 dotnet build -c Release
 
-# Install as Windows service (run as Administrator)
-Scripts\install-service.bat
+# Install service using the unified management script (recommended)
+Scripts\service-manager.ps1 install
+
+# Or use the interactive management console
+Scripts\service-manager.ps1
+
+# Alternative: Manual installation commands (run as Administrator)
+dotnet publish SystemInfoMonitorService.csproj -c Release -o bin\Release
+sc create SystemMonitorService binPath="bin\Release\SystemInfoMonitorService.exe" start=delayed-auto
+sc description SystemMonitorService "System Info Monitor - Auto-starts with Windows"
+sc failure SystemMonitorService reset=86400 actions=restart/5000/restart/10000/restart/30000
+sc start SystemMonitorService
 ```
+
+## Service Management
+
+The service is managed through a **unified PowerShell script** located in the `Scripts` folder:
+
+### Interactive Management (Recommended)
+```powershell
+# Launch the interactive management console
+cd Scripts
+.\service-manager.ps1
+```
+
+This opens an interactive menu system with:
+- Real-time service status display
+- Context-sensitive menu options
+- Guided troubleshooting
+- Live monitoring capabilities
+
+### Command Line Operations
+```powershell
+# Service lifecycle management
+.\service-manager.ps1 install      # Install service with auto-start
+.\service-manager.ps1 uninstall    # Remove service completely
+.\service-manager.ps1 restart      # Restart the service
+.\service-manager.ps1 status       # Show detailed service status
+
+# Monitoring and diagnostics  
+.\service-manager.ps1 logs          # View service logs (last 24 hours)
+.\service-manager.ps1 logs -Live    # Live event monitoring
+.\service-manager.ps1 diagnostics   # Run comprehensive system checks
+.\service-manager.ps1 diagnostics -Quick  # Quick essential checks only
+
+# Help and information
+.\service-manager.ps1 help          # Show all available commands and options
+```
+
+### Advanced Options
+```powershell
+# Installation options
+.\service-manager.ps1 install -SkipBuild    # Use existing build, skip compilation
+.\service-manager.ps1 install -Force       # Skip interactive prompts
+
+# Monitoring options  
+.\service-manager.ps1 status -Detailed     # Include recent events and hardware info
+.\service-manager.ps1 logs -Hours 48       # View logs from last 48 hours
+.\service-manager.ps1 diagnostics -ExportReport  # Export diagnostics to JSON
+```
+
+### Service Features
+The unified management script provides:
+- **Automatic elevation** - Requests admin privileges when needed
+- **ESP32 auto-detection** - Automatically finds connected ESP32 devices
+- **Comprehensive diagnostics** - System health checks and troubleshooting
+- **Live monitoring** - Real-time event and log monitoring  
+- **Error recovery** - Automatic service restart on failure
+- **Smart configuration** - Delayed startup and dependency management
+
+#### Auto-Start Configuration
+The service is configured to:
+- ✅ **Auto-start with Windows** (delayed start for better boot performance)
+- ✅ **Restart on failure** (with increasing delays: 5s, 10s, 30s)
+- ✅ **Start after network services** (depends on TCP/IP services)
+- ✅ **Comprehensive monitoring** with event logging and diagnostics
 
 ### 2. Setup ESP32-S3
 
@@ -163,16 +252,54 @@ SystemMonitorService/
 │   ├── SystemInfoCollector.cs # Hardware monitoring logic
 │   └── SerialCommunicator.cs  # ESP32 communication
 ├── Scripts/
-│   └── install-service.bat   # Service installation script
+│   ├── service-manager.ps1   # Unified service management script
+│   └── README.md             # Script documentation
 └── README.md                 # This documentation
 ```
 
 ## Troubleshooting
 
 ### Service Issues
-- Check Windows Event Log for service errors
-- Verify .NET 8.0 Runtime is installed
-- Run service installation as Administrator
+- **Installation**: Use `Scripts\service-manager.ps1 install` with automatic admin elevation
+- **Auto-start**: Service uses delayed auto-start (starts after Windows boot completes)
+- **Dependencies**: Service waits for TCP/IP services to start first
+- **Failure Recovery**: Service automatically restarts if it crashes (5s, 10s, 30s delays)
+- **Health Monitoring**: Use `Scripts\service-manager.ps1 diagnostics` for comprehensive system checks
+- **Event Logs**: Use `Scripts\service-manager.ps1 logs` to view detailed service events
+- **Interactive Management**: Use `Scripts\service-manager.ps1` for guided troubleshooting
+
+### Quick Diagnostics
+```powershell
+# Run comprehensive health check
+Scripts\service-manager.ps1 diagnostics
+
+# Quick essential checks only
+Scripts\service-manager.ps1 diagnostics -Quick  
+
+# Check current status with details
+Scripts\service-manager.ps1 status -Detailed
+
+# View recent service events
+Scripts\service-manager.ps1 logs
+
+# Live event monitoring
+Scripts\service-manager.ps1 logs -Live
+
+# Interactive management console
+Scripts\service-manager.ps1
+```
+
+### Auto-Start Verification
+```powershell
+# Check service configuration
+Scripts\service-manager.ps1 status
+
+# Verify auto-start settings
+sc qc SystemMonitorService | findstr "START_TYPE"
+
+# Check service dependencies  
+sc qc SystemMonitorService | findstr "DEPENDENCIES"
+```
 
 ### ESP32 Connection Issues
 - Check USB cable and port
@@ -185,6 +312,24 @@ SystemMonitorService/
 - Test LCD with simple Arduino sketch first
 
 ## Development
+
+### Script Management
+
+The `Scripts` folder contains a **single unified PowerShell script** that handles all service management operations:
+
+#### Why Unified?
+- **Simplicity**: One script instead of multiple files
+- **Consistency**: Unified error handling and user experience
+- **Maintainability**: Single file to update and maintain
+- **User-friendly**: Interactive menu system for easy navigation
+- **Automation-ready**: Complete command-line interface for CI/CD
+
+#### Migration from Multiple Scripts
+Previous versions used multiple separate scripts. The new unified approach:
+- Consolidates all functionality into `service-manager.ps1`
+- Maintains backward compatibility for all operations
+- Adds enhanced features like live monitoring and comprehensive diagnostics
+- Provides both interactive and command-line interfaces
 
 ### Building from Source
 ```bash
