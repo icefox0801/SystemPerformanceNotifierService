@@ -21,28 +21,31 @@ A Windows service that collects and sends system information (CPU, GPU, RAM usag
 - Available USB port for ESP32
 
 ### ESP32 Hardware
-- ESP32-S3-WROOM-1 ESP32-8048S050 development board
-- 20x4 I2C LCD display (HD44780 compatible)
-- USB cable (USB-A to Micro-USB or USB-C)
-- Jumper wires for LCD connection
+- ESP32-S3-WROOM-1 ESP32-8048S050 development board with integrated display
+- USB cable (USB-A to USB-C)
+- No additional wiring required (integrated display)
 
 ## Hardware Setup
 
-### ESP32 to LCD Connections (I2C)
-```
-ESP32    ->    20x4 LCD (I2C)
-GND      ->    GND
-3.3V     ->    VCC
-GPIO21   ->    SDA
-GPIO22   ->    SCL
-```
+### ESP32-S3 Display Interface
+The ESP32-S3-WROOM-1 ESP32-8048S050 features an integrated display that connects via internal interface (no external wiring required).
 
-### LCD Display Layout
+### Display Layout
 ```
-Line 1: CPU:[████████  ] 75%
-Line 2: 45C GPU:[████      ] 60%
-Line 3: RAM:[██████████] 85%  
-Line 4: 12.5/16.0GB G:68C
+┌─────────── System Monitor - ESP32-S3 ───────────┐
+│ 📶 Connection Status        Last Update: Live   │
+├─────────────────┬───────────────────────────────┤
+│      CPU        │           GPU                 │
+│ Intel Core...   │   NVIDIA GeForce...           │
+│                 │                               │
+│ Usage    Temp   │ Usage   Memory    Temp        │
+│  ##%     ##°C   │  ##%     ##%      ##°C        │
+│         Fan     │                               │
+│       -- RPM    │                               │
+├─────────────────┴───────────────────────────────┤
+│              System Memory                      │
+│ Usage: ##%           (##.# GB / ##.# GB)        │
+└─────────────────────────────────────────────────┘
 ```
 
 ## Quick Start
@@ -68,22 +71,22 @@ dotnet build -c Release
 Scripts\install-service.bat
 ```
 
-### 2. Setup ESP32
+### 2. Setup ESP32-S3
 
 #### Install Required Arduino Libraries
 - ArduinoJson (by Benoit Blanchon)
-- LiquidCrystal I2C (by Frank de Brabander)
+- ESP32-specific display libraries (LVGL or similar for GUI)
 
-#### Upload ESP32 Code
-1. Open `ESP32Code/SystemMonitor.ino` in Arduino IDE
-2. Select your ESP32 board and COM port
-3. Upload the code
-4. Connect the LCD according to the wiring diagram
+#### Upload ESP32-S3 Code
+1. Open ESP32 code in Arduino IDE or PlatformIO
+2. Select ESP32-S3 board and COM port
+3. Upload the code to the ESP32-S3-WROOM-1 ESP32-8048S050
+4. The integrated display will automatically initialize
 
 ### 3. Connect Hardware
-1. Connect ESP32 to PC via USB
-2. Connect LCD to ESP32 using I2C
-3. The service will auto-detect the ESP32 and start sending data
+1. Connect ESP32-S3 to PC via USB-C
+2. The service will auto-detect the ESP32-S3 and start sending data
+3. The integrated display will show the system monitoring interface
 
 ## Configuration
 
@@ -111,10 +114,11 @@ Edit `appsettings.json`:
 ```
 
 ### ESP32 Configuration
-The ESP32 code automatically configures:
-- I2C LCD on pins SDA=21, SCL=22
+The ESP32-S3 code automatically configures:
+- Integrated display interface (no external wiring required)
 - UART on Serial0 at 115200 baud
-- JSON parsing and display updates
+- JSON parsing and GUI display updates
+- Touch interface for interaction (if supported)
 
 ## Example JSON Output
 
@@ -216,8 +220,8 @@ dotnet run --environment Development
 ### Hardware Compatibility
 - **Tested CPUs**: Intel Core Ultra 7 265K, AMD Ryzen series
 - **Tested GPUs**: NVIDIA RTX 5070 Ti, RTX 40 series
-- **Tested ESP32**: ESP32-S3-WROOM-1 ESP32-8048S050, ESP32-WROOM-32, ESP32-S3
-- **LCD Compatibility**: 20x4 I2C LCD with PCF8574 backpack
+- **Tested ESP32**: ESP32-S3-WROOM-1 ESP32-8048S050 (integrated display), ESP32-WROOM-32, ESP32-S3
+- **Display Compatibility**: Integrated ESP32-S3 display, 20x4 I2C LCD with PCF8574 backpack
 
 ## License
 

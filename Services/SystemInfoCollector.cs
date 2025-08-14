@@ -263,7 +263,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // Try Windows Management Instrumentation for newer Intel CPUs
       using var searcher = new ManagementObjectSearcher(@"root\wmi", "SELECT * FROM MSAcpi_ThermalZoneTemperature");
       var collection = searcher.Get();
-      
+
       if (collection.Count > 0)
       {
         foreach (var obj in collection)
@@ -271,7 +271,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
           var temp = Convert.ToDouble(obj["CurrentTemperature"]);
           // Convert from tenths of Kelvin to Celsius
           var tempCelsius = (temp / 10.0) - 273.15;
-          
+
           if (tempCelsius > 0 && tempCelsius < 150) // Reasonable temperature range
           {
             cpuInfo.Temperature = Math.Max(cpuInfo.Temperature, (int)Math.Round(tempCelsius));
@@ -280,7 +280,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
           }
         }
       }
-      
+
       // If ACPI thermal zone didn't work, try Intel-specific WMI
       if (cpuInfo.Temperature == 0)
       {
@@ -301,12 +301,12 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // Try Intel-specific thermal sensors
       using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PerfRawData_Counters_ThermalZoneInformation");
       var collection = searcher.Get();
-      
+
       foreach (var obj in collection)
       {
         var name = obj["Name"]?.ToString();
         var temp = obj["Temperature"];
-        
+
         if (name != null && temp != null && name.Contains("CPU", StringComparison.OrdinalIgnoreCase))
         {
           var tempValue = Convert.ToDouble(temp);
@@ -323,7 +323,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     {
       _logger.LogDebug(ex, "Intel-specific WMI query failed");
     }
-    
+
     await Task.CompletedTask;
   }
 
@@ -334,12 +334,12 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // Query WMI for fan information
       using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_Fan");
       var collection = searcher.Get();
-      
+
       foreach (var obj in collection)
       {
         var name = obj["Name"]?.ToString();
         var speed = obj["DesiredSpeed"];
-        
+
         if (name != null && speed != null)
         {
           var fanSpeed = Convert.ToInt32(speed);
@@ -351,7 +351,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
           }
         }
       }
-      
+
       // If Win32_Fan didn't work, try alternative WMI classes
       if (cpuInfo.FanSpeed == 0)
       {
@@ -372,7 +372,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // Try system fan sensors
       using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PerfRawData_Counters_ProcessorInformation WHERE Name='_Total'");
       var collection = searcher.Get();
-      
+
       foreach (var obj in collection)
       {
         // This is a fallback - modern systems may not expose fan data this way
@@ -397,7 +397,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     {
       _logger.LogDebug(ex, "Alternative fan WMI query failed");
     }
-    
+
     await Task.CompletedTask;
   }
 
