@@ -161,6 +161,7 @@ public class SerialCommunicator : IDisposable
         var data = Encoding.UTF8.GetBytes(handshake);
         await _serialPort.BaseStream.WriteAsync(data, 0, data.Length);
         await _serialPort.BaseStream.FlushAsync();
+        _logger.LogDebug("Sent handshake to ESP32");
       }
       catch (Exception ex)
       {
@@ -350,18 +351,19 @@ public class SerialCommunicator : IDisposable
     {
       var json = JsonSerializer.Serialize(systemInfo, new JsonSerializerOptions
       {
-        WriteIndented = false
+        WriteIndented = false,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
       });
 
-      // Add newline delimiter for ESP32 parsing
-      json += "\n";
+      // Use newline as end marker - standard for serial communication
+      var message = $"{json}\n";
+      var data = Encoding.UTF8.GetBytes(message);
 
-      var data = Encoding.UTF8.GetBytes(json);
-
+      // Send all data at once
       await _serialPort.BaseStream.WriteAsync(data, 0, data.Length);
       await _serialPort.BaseStream.FlushAsync();
 
-      _logger.LogInformation("Sent to ESP32: {Json}", json.TrimEnd());
+      _logger.LogInformation("Sent to ESP32: {Json}", json);
     }
     catch (Exception ex)
     {
