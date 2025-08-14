@@ -1,9 +1,9 @@
 using LibreHardwareMonitor.Hardware;
-using SystemMonitorService.Models;
+using SystemPerformanceNotifierService.Models;
 using System.Diagnostics;
 using System.Management;
 
-namespace SystemMonitorService.Services;
+namespace SystemPerformanceNotifierService.Services;
 
 public class SystemInfoCollector : ISystemInfoCollector, IDisposable
 {

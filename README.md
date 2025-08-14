@@ -73,7 +73,7 @@ Scripts\service-manager.ps1
 
 # Alternative: Manual installation commands (run as Administrator)
 dotnet publish SystemPerformanceNotifierService.csproj -c Release -o bin\Release
-sc create SystemPerformanceNotifier binPath="bin\Release\SystemInfoMonitorService.exe" start=delayed-auto
+sc create SystemPerformanceNotifier binPath="bin\Release\SystemPerformanceNotifierService.exe" start=delayed-auto
 sc description SystemPerformanceNotifier "System Performance Notifier Service - Monitors and transmits system performance data"
 sc failure SystemPerformanceNotifier reset=86400 actions=restart/5000/restart/10000/restart/30000
 sc start SystemPerformanceNotifier

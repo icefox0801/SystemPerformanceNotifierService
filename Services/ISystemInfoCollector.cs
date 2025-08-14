@@ -1,6 +1,6 @@
-using SystemMonitorService.Models;
+using SystemPerformanceNotifierService.Models;
 
-namespace SystemMonitorService.Services;
+namespace SystemPerformanceNotifierService.Services;
 
 public interface ISystemInfoCollector : IDisposable
 {

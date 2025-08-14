@@ -1,12 +1,12 @@
-using SystemMonitorService;
-using SystemMonitorService.Services;
+using SystemPerformanceNotifierService;
+using SystemPerformanceNotifierService.Services;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 // Configure services
 builder.Services.AddWindowsService(options =>
 {
-    options.ServiceName = "SystemInfoMonitorService";
+  options.ServiceName = "SystemPerformanceNotifier";
 });
 
 // Register application services
@@ -16,9 +16,9 @@ builder.Services.AddHostedService<SystemMonitorWorker>();
 // Configure logging
 builder.Services.AddLogging(logging =>
 {
-    logging.ClearProviders();
-    logging.AddConsole();
-    logging.AddEventLog();
+  logging.ClearProviders();
+  logging.AddConsole();
+  logging.AddEventLog();
 });
 
 var host = builder.Build();

@@ -2,9 +2,9 @@ using System.IO.Ports;
 using System.Management;
 using System.Text;
 using System.Text.Json;
-using SystemMonitorService.Models;
+using SystemPerformanceNotifierService.Models;
 
-namespace SystemMonitorService.Services;
+namespace SystemPerformanceNotifierService.Services;
 
 public class SerialCommunicator : IDisposable
 {

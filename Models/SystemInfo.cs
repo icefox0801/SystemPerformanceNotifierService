@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace SystemMonitorService.Models;
+namespace SystemPerformanceNotifierService.Models;
 
 public class SystemInfo
 {

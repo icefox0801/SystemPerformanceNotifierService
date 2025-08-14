@@ -153,7 +153,7 @@ The installed service includes:
 ### Build Failures
 1. Ensure .NET SDK is installed (not just runtime)
 2. Check project file exists and is valid
-3. Try manual build: `dotnet build SystemInfoMonitorService.csproj`
+3. Try manual build: `dotnet build SystemPerformanceNotifierService.csproj`
 
 ## Advanced Usage
 

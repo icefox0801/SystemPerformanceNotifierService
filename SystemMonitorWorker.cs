@@ -1,6 +1,6 @@
-using SystemMonitorService.Services;
+using SystemPerformanceNotifierService.Services;
 
-namespace SystemMonitorService;
+namespace SystemPerformanceNotifierService;
 
 public class SystemMonitorWorker : BackgroundService
 {

@@ -6,7 +6,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/bin/Debug/net9.0-windows/win-x64/SystemInfoMonitorService.dll",
+      "program": "${workspaceFolder}/bin/Debug/net9.0-windows/win-x64/SystemPerformanceNotifierService.dll",
       "args": [],
       "cwd": "${workspaceFolder}",
       "console": "internalConsole",

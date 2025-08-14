@@ -7,7 +7,7 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/SystemInfoMonitorService.csproj",
+        "${workspaceFolder}/SystemPerformanceNotifierService.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
@@ -35,7 +35,7 @@
       "type": "process",
       "args": [
         "publish",
-        "${workspaceFolder}/SystemInfoMonitorService.csproj",
+        "${workspaceFolder}/SystemPerformanceNotifierService.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
@@ -49,7 +49,7 @@
         "watch",
         "run",
         "--project",
-        "${workspaceFolder}/SystemInfoMonitorService.csproj"
+        "${workspaceFolder}/SystemPerformanceNotifierService.csproj"
       ],
       "problemMatcher": "$msCompile",
       "presentation": {
@@ -73,7 +73,7 @@
       "args": [
         "run",
         "--project",
-        "${workspaceFolder}/SystemInfoMonitorService.csproj",
+        "${workspaceFolder}/SystemPerformanceNotifierService.csproj",
         "--environment",
         "Development"
       ],
@@ -100,7 +100,7 @@
       "type": "process",
       "args": [
         "clean",
-        "${workspaceFolder}/SystemInfoMonitorService.csproj"
+        "${workspaceFolder}/SystemPerformanceNotifierService.csproj"
       ],
       "problemMatcher": "$msCompile"
     }

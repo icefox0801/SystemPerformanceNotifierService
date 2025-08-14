@@ -5,7 +5,7 @@
 
 [CmdletBinding()]
 param(
-  [Parameter(Position=0)]
+  [Parameter(Position = 0)]
   [ValidateSet('install', 'uninstall', 'restart', 'status', 'logs', 'diagnostics', 'menu', 'help')]
   [string]$Command = 'menu',
   
@@ -102,10 +102,12 @@ function Install-SystemService {
       $dotnetVersion = & dotnet --version 2>&1
       if ($LASTEXITCODE -eq 0) {
         Write-Status ".NET Version: $dotnetVersion" "SUCCESS"
-      } else {
+      }
+      else {
         throw "dotnet command failed"
       }
-    } catch {
+    }
+    catch {
       Write-Status ".NET runtime not found! Install from: https://dotnet.microsoft.com/download" "ERROR"
       return $false
     }
@@ -117,7 +119,8 @@ function Install-SystemService {
       Stop-Service -Name $script:ServiceName -Force
       Write-Status "Service stopped" "SUCCESS"
       Start-Sleep 3
-    } else {
+    }
+    else {
       Write-Status "No running service found" "SUCCESS"
     }
 
@@ -126,7 +129,8 @@ function Install-SystemService {
     if ($service) {
       & sc.exe delete $script:ServiceName | Out-Null
       Write-Status "Service removed" "SUCCESS"
-    } else {
+    }
+    else {
       Write-Status "No existing service to remove" "SUCCESS"
     }
     Start-Sleep 2
@@ -142,7 +146,8 @@ function Install-SystemService {
         return $false
       }
       Write-Status "Build completed" "SUCCESS"
-    } else {
+    }
+    else {
       Write-Host "[STEP 3/6] Skipping build (using existing executable)..." -ForegroundColor Yellow
     }
 
@@ -154,10 +159,10 @@ function Install-SystemService {
 
     # Create service
     Write-Host "[STEP 4/6] Installing service..." -ForegroundColor Yellow
-    $createResult = & sc.exe create $script:ServiceName binPath= $script:ExePath start= delayed-auto depend= "Tcpip" 2>&1
+    $createResult = & sc.exe create $script:ServiceName binPath= $script:ExePath DisplayName= "System Performance Notifier Service" start= delayed-auto depend= "Tcpip" 2>&1
     if ($LASTEXITCODE -ne 0) {
       # Fallback without dependencies
-      $createResult = & sc.exe create $script:ServiceName binPath= $script:ExePath start= delayed-auto 2>&1
+      $createResult = & sc.exe create $script:ServiceName binPath= $script:ExePath DisplayName= "System Performance Notifier Service" start= delayed-auto 2>&1
       if ($LASTEXITCODE -ne 0) {
         Write-Status "Service creation failed: $createResult" "ERROR"
         return $false
@@ -180,7 +185,8 @@ function Install-SystemService {
     $service = Get-ServiceInfo
     if ($service -and $service.Status -eq 'Running') {
       Write-Status "Service is running" "SUCCESS"
-    } else {
+    }
+    else {
       Write-Status "Service installed but may not be running" "WARN"
     }
 
@@ -194,7 +200,8 @@ function Install-SystemService {
     
     return $true
 
-  } catch {
+  }
+  catch {
     Write-Status "Installation failed: $_" "ERROR"
     return $false
   }
@@ -231,10 +238,12 @@ function Uninstall-SystemService {
       
       if ($service.Status -eq 'Stopped') {
         Write-Status "Service stopped" "SUCCESS"
-      } else {
+      }
+      else {
         Write-Status "Service stop timeout (forcing removal)" "WARN"
       }
-    } else {
+    }
+    else {
       Write-Status "Service was not running" "SUCCESS"
     }
 
@@ -242,7 +251,8 @@ function Uninstall-SystemService {
     $result = & sc.exe delete $script:ServiceName 2>&1
     if ($LASTEXITCODE -eq 0) {
       Write-Status "Service removed successfully" "SUCCESS"
-    } else {
+    }
+    else {
       Write-Status "Service removal warning: $result" "WARN"
     }
 
@@ -252,7 +262,8 @@ function Uninstall-SystemService {
     $service = Get-ServiceInfo
     if (-not $service) {
       Write-Status "Service successfully uninstalled" "SUCCESS"
-    } else {
+    }
+    else {
       Write-Status "Service may still be visible (Windows processing removal)" "WARN"
     }
 
@@ -263,7 +274,8 @@ function Uninstall-SystemService {
     
     return $true
 
-  } catch {
+  }
+  catch {
     Write-Status "Uninstallation failed: $_" "ERROR"
     return $false
   }
@@ -308,10 +320,12 @@ function Restart-SystemService {
       
       if ($service.Status -eq 'Stopped') {
         Write-Status "Service stopped successfully" "SUCCESS"
-      } else {
+      }
+      else {
         Write-Status "Service stop timeout - attempting restart anyway" "WARN"
       }
-    } else {
+    }
+    else {
       Write-Status "Service was not running" "SUCCESS"
     }
 
@@ -328,13 +342,15 @@ function Restart-SystemService {
       
       # Get process information
       try {
-        $process = Get-Process -Name "SystemInfoMonitorService" -ErrorAction Stop
+        $process = Get-Process -Name "SystemPerformanceNotifierService" -ErrorAction Stop
         Write-Status "Process ID: $($process.Id)" "SUCCESS"
         Write-Status "Memory Usage: $([math]::Round($process.WorkingSet64 / 1MB, 1)) MB" "SUCCESS"
-      } catch {
+      }
+      catch {
         Write-Status "Process details unavailable" "WARN"
       }
-    } else {
+    }
+    else {
       Write-Status "Service restart failed - Status: $($service.Status)" "ERROR"
       Write-Host "Check Windows Event Log for details" -ForegroundColor Yellow
     }
@@ -346,7 +362,8 @@ function Restart-SystemService {
     
     return $service.Status -eq 'Running'
 
-  } catch {
+  }
+  catch {
     Write-Status "Restart failed: $_" "ERROR"
     return $false
   }
@@ -391,19 +408,21 @@ function Show-ServiceStatus {
       $deps = ($config | Select-String "DEPENDENCIES").ToString().Split(":")[1].Trim()
       Write-Host "[OK] Dependencies: $deps" -ForegroundColor Green
     }
-  } catch {
+  }
+  catch {
     Write-Host "[!] Unable to get service configuration" -ForegroundColor Yellow
   }
 
   # Process information
   if ($service.Status -eq 'Running') {
     try {
-      $process = Get-Process -Name "SystemInfoMonitorService" -ErrorAction Stop
+      $process = Get-Process -Name "SystemPerformanceNotifierService" -ErrorAction Stop
       Write-Host "[OK] Process ID: $($process.Id)" -ForegroundColor Green
       Write-Host "[OK] Memory Usage: $([math]::Round($process.WorkingSet64 / 1MB, 1)) MB" -ForegroundColor Green
       Write-Host "[OK] CPU Time: $($process.TotalProcessorTime.ToString('hh\:mm\:ss'))" -ForegroundColor Green
       Write-Host "[OK] Start Time: $($process.StartTime)" -ForegroundColor Green
-    } catch {
+    }
+    catch {
       Write-Host "[!] Process information unavailable" -ForegroundColor Yellow
     }
   }
@@ -418,7 +437,7 @@ function Show-ServiceStatus {
     $serialPorts = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { 
       $_.Name -match "COM\d+" -and 
       ($_.Name -match "USB|CH340|CP210|ESP32|Arduino" -or 
-       $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
+      $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
     }
     
     if ($serialPorts) {
@@ -426,11 +445,13 @@ function Show-ServiceStatus {
         $comPort = if ($port.Name -match "(COM\d+)") { $matches[1] } else { "Unknown" }
         Write-Host "[OK] Found: ${comPort} - $($port.Name)" -ForegroundColor Green
       }
-    } else {
+    }
+    else {
       Write-Host "[!] No ESP32/USB serial devices detected" -ForegroundColor Yellow
       Write-Host "  Make sure ESP32 is connected via USB" -ForegroundColor Gray
     }
-  } catch {
+  }
+  catch {
     Write-Host "[X] Unable to check serial ports" -ForegroundColor Red
   }
 
@@ -442,9 +463,9 @@ function Show-ServiceStatus {
     
     try {
       $events = Get-WinEvent -FilterHashtable @{
-        LogName = 'System'
+        LogName      = 'System'
         ProviderName = 'Service Control Manager'
-        StartTime = (Get-Date).AddDays(-1)
+        StartTime    = (Get-Date).AddDays(-1)
       } -MaxEvents 10 -ErrorAction Stop | Where-Object {
         $_.Message -match $script:ServiceName
       }
@@ -459,10 +480,12 @@ function Show-ServiceStatus {
           }
           Write-Host "$($event.TimeCreated.ToString('MM-dd HH:mm:ss')) - $($event.LevelDisplayName): $($event.Message -replace $script:ServiceName, 'Service')" -ForegroundColor $level
         }
-      } else {
+      }
+      else {
         Write-Host "[OK] No recent service events (service is stable)" -ForegroundColor Green
       }
-    } catch {
+    }
+    catch {
       Write-Host "[!] Unable to access event log" -ForegroundColor Yellow
     }
   }
@@ -475,7 +498,8 @@ function Show-ServiceLogs {
   Write-Host "  System Monitor Service Logs" -ForegroundColor Cyan
   if ($Live) {
     Write-Host "  Live Monitoring Mode" -ForegroundColor Yellow
-  } else {
+  }
+  else {
     Write-Host "  Last $Hours hours" -ForegroundColor Yellow
   }
   Write-Host "======================================================" -ForegroundColor Cyan
@@ -492,9 +516,9 @@ function Show-ServiceLogs {
         Start-Sleep 5
         
         $newEvents = Get-WinEvent -FilterHashtable @{
-          LogName = 'System'
+          LogName      = 'System'
           ProviderName = 'Service Control Manager'
-          StartTime = $lastEventTime
+          StartTime    = $lastEventTime
         } -MaxEvents 10 -ErrorAction SilentlyContinue | Where-Object {
           $_.Message -match $script:ServiceName
         }
@@ -511,7 +535,8 @@ function Show-ServiceLogs {
         
         $lastEventTime = Get-Date
       }
-    } catch {
+    }
+    catch {
       Write-Host "Live monitoring stopped: $_" -ForegroundColor Yellow
     }
     return
@@ -530,12 +555,14 @@ function Show-ServiceLogs {
     
     if ($service.Status -eq 'Running') {
       try {
-        $process = Get-Process -Name "SystemInfoMonitorService" -ErrorAction Stop
+        $process = Get-Process -Name "SystemPerformanceNotifierService" -ErrorAction Stop
         Write-Host "Memory Usage: $([math]::Round($process.WorkingSet64 / 1MB, 1)) MB" -ForegroundColor Green
         Write-Host "Start Time: $($process.StartTime)" -ForegroundColor Green
-      } catch {}
+      }
+      catch {}
     }
-  } else {
+  }
+  else {
     Write-Host ""
     Write-Host "Service is not installed" -ForegroundColor Red
   }
@@ -548,7 +575,7 @@ function Show-ServiceLogs {
   try {
     $startTime = (Get-Date).AddHours(-$Hours)
     $events = Get-WinEvent -FilterHashtable @{
-      LogName = 'System'
+      LogName   = 'System'
       StartTime = $startTime
     } -MaxEvents 50 -ErrorAction Stop | Where-Object {
       $_.Message -match $script:ServiceName -or
@@ -567,10 +594,12 @@ function Show-ServiceLogs {
         $time = $event.TimeCreated.ToString('MM-dd HH:mm:ss')
         Write-Host "$time [$($event.LevelDisplayName.PadRight(11))] $($event.Message.Split("`n")[0])" -ForegroundColor $color
       }
-    } else {
+    }
+    else {
       Write-Host "✓ No relevant events found (service is stable)" -ForegroundColor Green
     }
-  } catch {
+  }
+  catch {
     Write-Host "⚠ Unable to access event log: $_" -ForegroundColor Yellow
   }
 
@@ -584,7 +613,7 @@ function Show-ServiceLogs {
     $ports = Get-CimInstance -ClassName Win32_PnPEntity | Where-Object { 
       $_.Name -match "COM\d+" -and 
       ($_.Name -match "USB|CH340|CP210|ESP32|Arduino|Serial" -or 
-       $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
+      $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
     }
     
     if ($ports) {
@@ -592,10 +621,12 @@ function Show-ServiceLogs {
         $comPort = if ($port.Name -match "(COM\d+)") { $matches[1] } else { "Unknown" }
         Write-Host "[OK] ${comPort}: $($port.Name)" -ForegroundColor Green
       }
-    } else {
+    }
+    else {
       Write-Host "[!] No USB serial devices detected" -ForegroundColor Yellow
     }
-  } catch {
+  }
+  catch {
     Write-Host "[X] Unable to check serial ports: $_" -ForegroundColor Red
   }
 }
@@ -621,24 +652,28 @@ function Start-SystemDiagnostics {
     $dotnetVersion = & dotnet --version 2>&1
     if ($LASTEXITCODE -eq 0) {
       Write-Status ".NET Runtime: $dotnetVersion" "SUCCESS"
-    } else {
+    }
+    else {
       Write-Status ".NET Runtime: Not Found" "ERROR"
     }
-  } catch {
+  }
+  catch {
     Write-Status ".NET Runtime: Not Found" "ERROR"
   }
   
   # Admin privileges
   if (Test-Administrator) {
     Write-Status "Admin Rights: Available" "SUCCESS"
-  } else {
+  }
+  else {
     Write-Status "Admin Rights: Not Running as Admin (some operations may fail)" "WARN"
   }
   
   # Project files
   if (Test-Path $script:ProjectPath) {
     Write-Status "Project File: Found" "SUCCESS"
-  } else {
+  }
+  else {
     Write-Status "Project File: Missing ($script:ProjectPath)" "ERROR"
   }
   
@@ -647,10 +682,12 @@ function Start-SystemDiagnostics {
     try {
       $version = (Get-Item $script:ExePath).VersionInfo.FileVersion
       Write-Status "Service Executable: Found (v$version)" "SUCCESS"
-    } catch {
+    }
+    catch {
       Write-Status "Service Executable: Found" "SUCCESS"
     }
-  } else {
+  }
+  else {
     Write-Status "Service Executable: Missing (run build or install)" "WARN"
   }
 
@@ -663,7 +700,8 @@ function Start-SystemDiagnostics {
   
   if (-not $service) {
     Write-Status "Installation: Not Installed" "ERROR"
-  } else {
+  }
+  else {
     Write-Status "Installation: Installed" "SUCCESS"
     
     switch ($service.Status) {
@@ -671,10 +709,11 @@ function Start-SystemDiagnostics {
         Write-Status "Status: Running" "SUCCESS"
         
         try {
-          $process = Get-Process -Name "SystemInfoMonitorService" -ErrorAction Stop
+          $process = Get-Process -Name "SystemPerformanceNotifierService" -ErrorAction Stop
           Write-Status "Process ID: $($process.Id)" "SUCCESS"
           Write-Status "Memory Usage: $([math]::Round($process.WorkingSet64 / 1MB, 1)) MB" "SUCCESS"
-        } catch {
+        }
+        catch {
           Write-Status "Process Info: Unavailable" "WARN"
         }
       }
@@ -687,10 +726,12 @@ function Start-SystemDiagnostics {
       $config = & sc.exe qc $script:ServiceName 2>&1 | Out-String
       if ($config -match "AUTO_START|DELAYED") {
         Write-Status "Auto-Start: Enabled" "SUCCESS"
-      } else {
+      }
+      else {
         Write-Status "Auto-Start: Not Configured" "WARN"
       }
-    } catch {
+    }
+    catch {
       Write-Status "Configuration: Unable to check" "WARN"
     }
   }
@@ -705,7 +746,7 @@ function Start-SystemDiagnostics {
     $serialPorts = Get-CimInstance -ClassName Win32_PnPEntity -ErrorAction Stop | Where-Object { 
       $_.Name -match "COM\d+" -and 
       ($_.Name -match "USB|CH340|CP210|ESP32|Arduino" -or 
-       $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
+      $_.DeviceID -match "VID_1A86|VID_10C4|VID_0403|VID_067B")
     }
     
     if ($serialPorts) {
@@ -713,10 +754,12 @@ function Start-SystemDiagnostics {
         $comPort = if ($port.Name -match "(COM\d+)") { $matches[1] } else { "Unknown" }
         Write-Status "ESP32 Device: ${comPort} ($($port.Name))" "SUCCESS"
       }
-    } else {
+    }
+    else {
       Write-Status "ESP32 Device: Not Detected (connect ESP32 via USB)" "WARN"
     }
-  } catch {
+  }
+  catch {
     Write-Status "Serial Ports: Check Failed" "ERROR"
   }
   
@@ -732,7 +775,8 @@ function Start-SystemDiagnostics {
       $memTotal = $memory.TotalVisibleMemorySize / 1MB
       $memPercent = [math]::Round(($memUsed / $memTotal) * 100, 1)
       Write-Status "Memory Usage: $memPercent% ($([math]::Round($memUsed, 1))/$([math]::Round($memTotal, 1)) GB)" "SUCCESS"
-    } catch {
+    }
+    catch {
       Write-Status "Resource Check: Failed" "WARN"
     }
     
@@ -747,10 +791,12 @@ function Start-SystemDiagnostics {
         $svc = Get-Service -Name $svcName -ErrorAction Stop
         if ($svc.Status -eq 'Running') {
           Write-Status "$svcName Service: Running" "SUCCESS"
-        } else {
+        }
+        else {
           Write-Status "$svcName Service: $($svc.Status) (may affect service startup)" "WARN"
         }
-      } catch {
+      }
+      catch {
         Write-Status "$svcName Service: Not Found" "ERROR"
       }
     }
@@ -764,7 +810,8 @@ function Start-SystemDiagnostics {
   
   if ($script:ErrorCount -eq 0 -and $script:WarningCount -eq 0) {
     Write-Host "[SUCCESS] ALL CHECKS PASSED - System is healthy!" -ForegroundColor Green
-  } else {
+  }
+  else {
     if ($script:ErrorCount -gt 0) {
       Write-Host "[X] ERRORS FOUND: $script:ErrorCount" -ForegroundColor Red
     }
@@ -810,12 +857,14 @@ function Show-MainMenu {
     
     if ($service.Status -eq 'Running') {
       try {
-        $process = Get-Process -Name "SystemInfoMonitorService" -ErrorAction Stop
+        $process = Get-Process -Name "SystemPerformanceNotifierService" -ErrorAction Stop
         Write-Host "Memory Usage: $([math]::Round($process.WorkingSet64 / 1MB, 1)) MB" -ForegroundColor Green
         Write-Host "Uptime: $(((Get-Date) - $process.StartTime).ToString('d\.hh\:mm\:ss'))" -ForegroundColor Green
-      } catch {}
+      }
+      catch {}
     }
-  } else {
+  }
+  else {
     Write-Host "Current Status: NOT INSTALLED" -ForegroundColor Red
   }
   
@@ -826,7 +875,8 @@ function Show-MainMenu {
   if (-not $service) {
     Write-Host "  [1] Install Service" -ForegroundColor White
     Write-Host "  [2] Build Project Only" -ForegroundColor White
-  } else {
+  }
+  else {
     Write-Host "  [1] Restart Service" -ForegroundColor White
     Write-Host "  [2] Stop Service" -ForegroundColor White
     Write-Host "  [3] Start Service" -ForegroundColor White
@@ -920,7 +970,8 @@ function Start-InteractiveMenu {
       "1" {
         if (-not $service) {
           Install-SystemService
-        } else {
+        }
+        else {
           Restart-SystemService
         }
         Wait-ForKeyPress
@@ -933,10 +984,12 @@ function Start-InteractiveMenu {
           & dotnet publish $script:ProjectPath -c Release -o (Join-Path $script:ProjectRoot "bin\Release") --self-contained false
           if ($LASTEXITCODE -eq 0) {
             Write-Status "Build completed successfully" "SUCCESS"
-          } else {
+          }
+          else {
             Write-Status "Build failed" "ERROR"
           }
-        } else {
+        }
+        else {
           Write-Host ""
           Write-Host "Stopping service..." -ForegroundColor Yellow
           Stop-Service -Name $script:ServiceName -Force
