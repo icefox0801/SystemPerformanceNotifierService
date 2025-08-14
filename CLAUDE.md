@@ -1,7 +1,7 @@
-# System Monitor Service for ESP32
+# System Performance Notifier Service for ESP32
 
 ## Project Overview
-A Windows service that collects and sends system information (CPU, GPU, RAM usage and temperatures) to an ESP32 development board via USB/Serial connection for custom PC monitoring displays with LCD screens.
+A Windows service that collects and sends system information (CPU, GPU, RAM usage and temperatures) to an ESP32 development board via USB/Serial connection for custom PC performance monitoring displays with LCD screens.
 
 ## Development History & Changes Made by Claude
 
@@ -20,7 +20,7 @@ A Windows service that collects and sends system information (CPU, GPU, RAM usag
 
 ### Project Structure
 ```
-SystemInfoMonitorService/
+SystemPerformanceNotifierService/
 ├── Models/
 │   └── SystemInfo.cs              # Data models for system information
 ├── Services/
@@ -28,14 +28,14 @@ SystemInfoMonitorService/
 │   ├── SystemInfoCollector.cs     # Hardware monitoring implementation
 │   └── SerialCommunicator.cs      # ESP32 USB/Serial communication
 ├── Scripts/
-│   └── install-service.bat        # Windows service installation script
+│   └── service-manager.ps1        # Unified PowerShell service management
 ├── Properties/
 │   └── launchSettings.json        # Development launch settings
 ├── Program.cs                     # Service host configuration
 ├── SystemMonitorWorker.cs         # Background service worker
 ├── appsettings.json              # Production configuration
 ├── appsettings.Development.json   # Development configuration
-└── SystemInfoMonitorService.csproj # Project file
+└── SystemPerformanceNotifierService.csproj # Project file
 ```
 
 ## Technical Features
@@ -73,7 +73,7 @@ SystemInfoMonitorService/
 
 ### Development
 ```bash
-cd SystemInfoMonitorService
+cd SystemPerformanceNotifierService
 dotnet restore
 dotnet build
 dotnet run --environment Development
@@ -107,6 +107,23 @@ Scripts\install-service.bat
 - **ESP32 Connection**: COM3 (CH340 chip, VID: 1A86, PID: 7523)
 - **Installation Method**: Unified `service-manager.ps1` script
 - **Auto-Detection**: Working correctly with VID/PID matching
+
+### Service Rebranding (August 15, 2025)
+- **Service Name Changed**: From "SystemMonitorService" to "SystemPerformanceNotifier"
+- **Display Name**: "System Performance Notifier Service"
+- **Description Updated**: "System Performance Notifier Service - Monitors and transmits system performance data to external display devices"
+- **Professional Branding**: Following vendor conventions (similar to ASUS services)
+- **Documentation Updated**: All references updated in README.md, Scripts/README.md, and CLAUDE.md
+- **Script Configuration**: service-manager.ps1 updated with new service name
+- **Note**: Service reinstallation required to apply new name
+
+### Project Renaming (August 14, 2025)
+- **Project Files**: SystemInfoMonitorService.csproj → SystemPerformanceNotifierService.csproj
+- **Solution File**: SystemInfoMonitorService.sln → SystemPerformanceNotifierService.sln
+- **Assembly Name**: Updated to SystemPerformanceNotifierService
+- **Executable Name**: SystemPerformanceNotifierService.exe
+- **Repository Name**: SystemInfoMonitorService → SystemPerformanceNotifierService
+- **Complete Rebranding**: Project, service, and repository all aligned with new naming
 
 ## Known Issues
 - Warning CS1998: `DetectESP32PortAsync` method lacks await operator (harmless - method uses synchronous ManagementObjectSearcher)

@@ -19,12 +19,12 @@ param(
 )
 
 # Global variables
-$script:ServiceName = "SystemMonitorService"
+$script:ServiceName = "SystemPerformanceNotifier"
 $script:ErrorCount = 0
 $script:WarningCount = 0
 $script:ProjectRoot = Split-Path $PSScriptRoot -Parent
-$script:ProjectPath = Join-Path $script:ProjectRoot "SystemInfoMonitorService.csproj"
-$script:ExePath = Join-Path $script:ProjectRoot "bin\Release\SystemInfoMonitorService.exe"
+$script:ProjectPath = Join-Path $script:ProjectRoot "SystemPerformanceNotifierService.csproj"
+$script:ExePath = Join-Path $script:ProjectRoot "bin\Release\SystemPerformanceNotifierService.exe"
 
 #region Utility Functions
 
@@ -167,7 +167,7 @@ function Install-SystemService {
 
     # Configure service
     Write-Host "[STEP 5/6] Configuring service..." -ForegroundColor Yellow
-    & sc.exe description $script:ServiceName "System Info Monitor - Sends CPU/GPU/RAM data to ESP32. Auto-starts with Windows." | Out-Null
+    & sc.exe description $script:ServiceName "System Performance Notifier Service - Monitors and transmits system performance data to external display devices." | Out-Null
     & sc.exe failure $script:ServiceName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
     Write-Status "Service configured (auto-start with failure recovery)" "SUCCESS"
 

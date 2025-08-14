@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SystemInfoMonitorService", "SystemInfoMonitorService.csproj", "{AA08233E-4874-6CD2-81CB-E735DE872593}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SystemPerformanceNotifierService", "SystemPerformanceNotifierService.csproj", "{AA08233E-4874-6CD2-81CB-E735DE872593}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

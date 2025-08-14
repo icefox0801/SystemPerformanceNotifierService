@@ -1,4 +1,4 @@
-# System Monitor Service for ESP32
+# System Performance Notifier Service for ESP32
 
 > **Latest Update**: Service management has been simplified with a unified PowerShell script (`Scripts/service-manager.ps1`) that consolidates all operations into a single, user-friendly interface with both interactive menu and command-line support.
 
@@ -53,8 +53,8 @@ The ESP32-S3-WROOM-1 ESP32-8048S050 features an integrated display that connects
 #### Install Dependencies
 ```bash
 # Clone or create the project
-git clone https://github.com/icefox0801/SystemMonitorService
-cd SystemMonitorService
+git clone https://github.com/icefox0801/SystemPerformanceNotifierService
+cd SystemPerformanceNotifierService
 
 # Restore NuGet packages
 dotnet restore
@@ -72,11 +72,11 @@ Scripts\service-manager.ps1 install
 Scripts\service-manager.ps1
 
 # Alternative: Manual installation commands (run as Administrator)
-dotnet publish SystemInfoMonitorService.csproj -c Release -o bin\Release
-sc create SystemMonitorService binPath="bin\Release\SystemInfoMonitorService.exe" start=delayed-auto
-sc description SystemMonitorService "System Info Monitor - Auto-starts with Windows"
-sc failure SystemMonitorService reset=86400 actions=restart/5000/restart/10000/restart/30000
-sc start SystemMonitorService
+dotnet publish SystemPerformanceNotifierService.csproj -c Release -o bin\Release
+sc create SystemPerformanceNotifier binPath="bin\Release\SystemInfoMonitorService.exe" start=delayed-auto
+sc description SystemPerformanceNotifier "System Performance Notifier Service - Monitors and transmits system performance data"
+sc failure SystemPerformanceNotifier reset=86400 actions=restart/5000/restart/10000/restart/30000
+sc start SystemPerformanceNotifier
 ```
 
 ## Service Management
@@ -157,7 +157,7 @@ The service is configured to:
 ### 3. Connect Hardware
 1. Connect ESP32-S3 to PC via USB-C
 2. The service will auto-detect the ESP32-S3 and start sending data
-3. The integrated display will show the system monitoring interface
+3. The integrated display will show the system performance interface
 
 ## Configuration
 
@@ -242,7 +242,7 @@ The service sends JSON data to the ESP32 every second. Here's an example of the 
 ## Project Structure
 
 ```
-SystemMonitorService/
+SystemPerformanceNotifierService/
 ├── Program.cs                 # Main application entry point
 ├── SystemMonitorWorker.cs     # Background service worker
 ├── Models/
@@ -295,10 +295,10 @@ Scripts\service-manager.ps1
 Scripts\service-manager.ps1 status
 
 # Verify auto-start settings
-sc qc SystemMonitorService | findstr "START_TYPE"
+sc qc SystemPerformanceNotifier | findstr "START_TYPE"
 
 # Check service dependencies  
-sc qc SystemMonitorService | findstr "DEPENDENCIES"
+sc qc SystemPerformanceNotifier | findstr "DEPENDENCIES"
 ```
 
 ### ESP32 Connection Issues
@@ -334,8 +334,8 @@ Previous versions used multiple separate scripts. The new unified approach:
 ### Building from Source
 ```bash
 # Clone repository
-git clone https://github.com/icefox0801/SystemMonitorService
-cd SystemMonitorService
+git clone https://github.com/icefox0801/SystemPerformanceNotifierService
+cd SystemPerformanceNotifierService
 
 # Build in development mode
 dotnet build

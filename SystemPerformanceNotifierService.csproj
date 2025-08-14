@@ -8,6 +8,7 @@
     <OutputType>Exe</OutputType>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <AssemblyName>SystemPerformanceNotifierService</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

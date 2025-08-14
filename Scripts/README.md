@@ -1,6 +1,6 @@
 # Service Management Scripts
 
-This folder contains a unified PowerShell script for managing the System Monitor Service.
+This folder contains a unified PowerShell script for managing the System Performance Notifier Service.
 
 ## Unified Management Script
 
