@@ -1,6 +1,6 @@
-# System Monitor Service Manager
+# System Performance Notifier Service Manager
 # Unified script for all service management operations
-# Author: System Monitor Service Team
+# Author: System Performance Notifier Service Team
 # Version: 2.0
 
 [CmdletBinding()]
@@ -91,7 +91,7 @@ function Install-SystemService {
   }
   
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Installer" -ForegroundColor Cyan  
+  Write-Host "  System Performance Notifier Service Installer" -ForegroundColor Cyan  
   Write-Host "======================================================" -ForegroundColor Cyan
   Write-Host ""
 
@@ -213,7 +213,7 @@ function Uninstall-SystemService {
   }
   
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Uninstaller" -ForegroundColor Cyan
+  Write-Host "  System Performance Notifier Service Uninstaller" -ForegroundColor Cyan
   Write-Host "======================================================" -ForegroundColor Cyan
   Write-Host ""
 
@@ -287,7 +287,7 @@ function Restart-SystemService {
   }
   
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Restart" -ForegroundColor Cyan
+  Write-Host "  System Performance Notifier Service Restart" -ForegroundColor Cyan
   Write-Host "======================================================" -ForegroundColor Cyan
   Write-Host ""
 
@@ -375,7 +375,7 @@ function Restart-SystemService {
 
 function Show-ServiceStatus {
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Status" -ForegroundColor Cyan
+  Write-Host "  System Performance Notifier Service Status" -ForegroundColor Cyan
   Write-Host "======================================================" -ForegroundColor Cyan
   Write-Host ""
 
@@ -495,7 +495,7 @@ function Show-ServiceStatus {
 
 function Show-ServiceLogs {
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Logs" -ForegroundColor Cyan
+  Write-Host "  System Performance Notifier Service Logs" -ForegroundColor Cyan
   if ($Live) {
     Write-Host "  Live Monitoring Mode" -ForegroundColor Yellow
   }
@@ -633,7 +633,7 @@ function Show-ServiceLogs {
 
 function Start-SystemDiagnostics {
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Diagnostics" -ForegroundColor Cyan
+  Write-Host "  System Performance Notifier Service Diagnostics" -ForegroundColor Cyan
   if ($Quick) {
     Write-Host "  Quick Mode - Essential checks only" -ForegroundColor Yellow
   }
@@ -840,7 +840,7 @@ function Start-SystemDiagnostics {
 function Show-MainMenu {
   Clear-Host
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Manager v2.0" -ForegroundColor Cyan
+  Write-Host "  System Performance Notifier Service Manager v2.0" -ForegroundColor Cyan
   Write-Host "  Unified Management Console" -ForegroundColor Cyan
   Write-Host "======================================================" -ForegroundColor Cyan
   Write-Host ""
@@ -902,7 +902,7 @@ function Show-MainMenu {
 function Show-HelpInfo {
   Clear-Host
   Write-Host "======================================================" -ForegroundColor Cyan
-  Write-Host "  System Monitor Service Manager Help" -ForegroundColor Cyan
+  Write-Host "  System Performance Notifier Service Manager Help" -ForegroundColor Cyan
   Write-Host "======================================================" -ForegroundColor Cyan
   Write-Host ""
   
