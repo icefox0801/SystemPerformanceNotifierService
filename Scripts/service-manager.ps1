@@ -990,20 +990,44 @@ function Start-InteractiveMenu {
           }
         }
         else {
-          Write-Host ""
-          Write-Host "Stopping service..." -ForegroundColor Yellow
-          Stop-Service -Name $script:ServiceName -Force
-          Write-Status "Service stopped" "SUCCESS"
+          if (-not (Test-Administrator)) {
+            Write-Host ""
+            Write-Host "Administrator privileges required to stop the service." -ForegroundColor Red
+            Write-Host "Please run this script as Administrator or use elevated PowerShell." -ForegroundColor Yellow
+          }
+          else {
+            Write-Host ""
+            Write-Host "Stopping service..." -ForegroundColor Yellow
+            try {
+              Stop-Service -Name $script:ServiceName -Force
+              Write-Status "Service stopped" "SUCCESS"
+            }
+            catch {
+              Write-Status "Failed to stop service: $_" "ERROR"
+            }
+          }
         }
         Wait-ForKeyPress
       }
       
       "3" {
         if ($service) {
-          Write-Host ""
-          Write-Host "Starting service..." -ForegroundColor Yellow
-          Start-Service -Name $script:ServiceName
-          Write-Status "Service started" "SUCCESS"
+          if (-not (Test-Administrator)) {
+            Write-Host ""
+            Write-Host "Administrator privileges required to start the service." -ForegroundColor Red
+            Write-Host "Please run this script as Administrator or use elevated PowerShell." -ForegroundColor Yellow
+          }
+          else {
+            Write-Host ""
+            Write-Host "Starting service..." -ForegroundColor Yellow
+            try {
+              Start-Service -Name $script:ServiceName
+              Write-Status "Service started" "SUCCESS"
+            }
+            catch {
+              Write-Status "Failed to start service: $_" "ERROR"
+            }
+          }
           Wait-ForKeyPress
         }
       }

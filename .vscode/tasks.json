@@ -109,10 +109,13 @@
       "command": "powershell.exe",
       "type": "process",
       "args": [
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/Scripts/service-manager.ps1"
+        "-Command",
+        "Start-Process",
+        "powershell.exe",
+        "-Verb",
+        "RunAs",
+        "-ArgumentList",
+        "'-ExecutionPolicy Bypass -File \"${workspaceFolder}/Scripts/service-manager.ps1\"'"
       ],
       "group": "build",
       "presentation": {
