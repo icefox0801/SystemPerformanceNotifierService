@@ -27,9 +27,9 @@ public class SerialCommunicator : IDisposable
 
   public async Task InitializeAsync()
   {
-    var configuredPort = _configuration["SystemMonitor:SerialPort"] ?? "AUTO";
-    var baudRate = _configuration.GetValue<int>("SystemMonitor:BaudRate", 115200);
-    var autoDetect = _configuration.GetValue<bool>("SystemMonitor:AutoDetectESP32", true);
+    var configuredPort = _configuration["SystemPerformanceNotifier:SerialPort"] ?? "AUTO";
+    var baudRate = _configuration.GetValue<int>("SystemPerformanceNotifier:BaudRate", 115200);
+    var autoDetect = _configuration.GetValue<bool>("SystemPerformanceNotifier:AutoDetectESP32", true);
 
     if (configuredPort == "AUTO" && autoDetect)
     {
@@ -46,7 +46,7 @@ public class SerialCommunicator : IDisposable
     }
 
     // Start reconnection monitoring
-    var reconnectInterval = _configuration.GetValue<int>("SystemMonitor:ReconnectInterval", 5000);
+    var reconnectInterval = _configuration.GetValue<int>("SystemPerformanceNotifier:ReconnectInterval", 5000);
     _reconnectTimer.Change(reconnectInterval, reconnectInterval);
   }
 
@@ -54,8 +54,8 @@ public class SerialCommunicator : IDisposable
   {
     try
     {
-      var vendorId = _configuration["SystemMonitor:ESP32VendorId"] ?? "1A86";
-      var productId = _configuration["SystemMonitor:ESP32ProductId"] ?? "7523";
+      var vendorId = _configuration["SystemPerformanceNotifier:ESP32VendorId"] ?? "1A86";
+      var productId = _configuration["SystemPerformanceNotifier:ESP32ProductId"] ?? "7523";
 
       _logger.LogInformation("Auto-detecting ESP32 on USB ports...");
 
@@ -158,7 +158,7 @@ public class SerialCommunicator : IDisposable
     {
       try
       {
-        var handshake = "{\"type\":\"handshake\",\"service\":\"SystemMonitor\",\"version\":\"1.0\"}\n";
+        var handshake = "{\"type\":\"handshake\",\"service\":\"SystemPerformanceNotifier\",\"version\":\"1.0\"}\n";
         var data = Encoding.UTF8.GetBytes(handshake);
         await _serialPort.BaseStream.WriteAsync(data, 0, data.Length);
         await _serialPort.BaseStream.FlushAsync();
@@ -383,7 +383,7 @@ public class SerialCommunicator : IDisposable
       try
       {
         _logger.LogInformation("Attempting to reconnect to ESP32...");
-        var baudRate = _configuration.GetValue<int>("SystemMonitor:BaudRate", 115200);
+        var baudRate = _configuration.GetValue<int>("SystemPerformanceNotifier:BaudRate", 115200);
         await ConnectToPortAsync(_currentPortName, baudRate);
       }
       catch (Exception ex)
@@ -391,7 +391,7 @@ public class SerialCommunicator : IDisposable
         _logger.LogDebug("Reconnection attempt failed: {Error}", ex.Message);
 
         // Try auto-detection again
-        if (_configuration.GetValue<bool>("SystemMonitor:AutoDetectESP32", true))
+        if (_configuration.GetValue<bool>("SystemPerformanceNotifier:AutoDetectESP32", true))
         {
           var newPort = DetectESP32Port();
           if (!string.IsNullOrEmpty(newPort) && newPort != _currentPortName)

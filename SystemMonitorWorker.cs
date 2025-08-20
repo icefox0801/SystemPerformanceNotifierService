@@ -54,7 +54,7 @@ public class SystemMonitorWorker : BackgroundService
 
   protected override async Task ExecuteAsync(CancellationToken stoppingToken)
   {
-    var interval = _configuration.GetValue<int>("SystemMonitor:TransmissionInterval", 1000);
+    var interval = _configuration.GetValue<int>("SystemPerformanceNotifier:TransmissionInterval", 1000);
 
     _logger.LogInformation("Starting system monitoring loop with {Interval}ms interval", interval);
 
