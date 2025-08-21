@@ -113,24 +113,50 @@ public class SerialCommunicator : IDisposable
   {
     try
     {
-      _serialPort?.Close();
+      // Gracefully close existing connection without triggering reset
+      if (_serialPort?.IsOpen == true)
+      {
+        try
+        {
+          // Don't change DTR/RTS states during close to prevent reset
+          _serialPort.Close();
+        }
+        catch (Exception ex)
+        {
+          _logger.LogDebug("Error closing serial port: {Error}", ex.Message);
+        }
+      }
       _serialPort?.Dispose();
 
       _serialPort = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
       {
         ReadTimeout = 1000,
         WriteTimeout = 1000,
-        DtrEnable = true,
-        RtsEnable = true
+        DtrEnable = false,  // Prevent ESP32 reset on connection
+        RtsEnable = false,  // Prevent ESP32 reset on connection
+        Handshake = Handshake.None,  // Disable hardware handshaking
+        ReceivedBytesThreshold = 1   // Trigger events on single byte
       };
 
       _serialPort.Open();
 
+      // Explicitly ensure DTR/RTS are false after opening
+      try
+      {
+        _serialPort.DtrEnable = false;
+        _serialPort.RtsEnable = false;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogDebug("Could not explicitly set DTR/RTS: {Error}", ex.Message);
+      }
+
       // Start reading incoming data from ESP32
       StartReadingIncomingData();
 
-      // Send initial handshake
-      await Task.Delay(100); // Allow ESP32 to reset if needed
+      // Wait for ESP32 to stabilize (configurable delay)
+      var stabilizationDelay = _configuration.GetValue<int>("SystemPerformanceNotifier:ConnectionStabilizationDelay", 1000);
+      await Task.Delay(stabilizationDelay);
       await SendHandshakeAsync();
 
       _logger.LogInformation("Connected to ESP32 on {Port} at {BaudRate} baud", portName, baudRate);
@@ -423,7 +449,22 @@ public class SerialCommunicator : IDisposable
       _readTask?.Wait(TimeSpan.FromSeconds(2)); // Wait for read task to complete
 
       _reconnectTimer?.Dispose();
-      _serialPort?.Close();
+
+      // Gracefully close serial port without triggering reset
+      if (_serialPort?.IsOpen == true)
+      {
+        try
+        {
+          // Ensure DTR/RTS remain false during close
+          _serialPort.DtrEnable = false;
+          _serialPort.RtsEnable = false;
+          _serialPort.Close();
+        }
+        catch (Exception)
+        {
+          // Ignore close errors to prevent reset
+        }
+      }
       _serialPort?.Dispose();
       _cancellationTokenSource?.Dispose();
       _disposed = true;
