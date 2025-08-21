@@ -113,6 +113,13 @@ public class SerialCommunicator : IDisposable
   {
     try
     {
+      // Check if we're already connected to this port
+      if (_serialPort?.IsOpen == true && _currentPortName == portName)
+      {
+        _logger.LogDebug("Already connected to {Port}, skipping reconnection", portName);
+        return;
+      }
+
       // Gracefully close existing connection without triggering reset
       if (_serialPort?.IsOpen == true)
       {
@@ -128,28 +135,19 @@ public class SerialCommunicator : IDisposable
       }
       _serialPort?.Dispose();
 
+      // Create port with anti-reset configuration
       _serialPort = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
       {
         ReadTimeout = 1000,
         WriteTimeout = 1000,
-        DtrEnable = false,  // Prevent ESP32 reset on connection
-        RtsEnable = false,  // Prevent ESP32 reset on connection
+        DtrEnable = false,  // Critical: Prevent ESP32 reset on connection
+        RtsEnable = false,  // Critical: Prevent ESP32 reset on connection
         Handshake = Handshake.None,  // Disable hardware handshaking
         ReceivedBytesThreshold = 1   // Trigger events on single byte
       };
 
-      _serialPort.Open();
-
-      // Explicitly ensure DTR/RTS are false after opening
-      try
-      {
-        _serialPort.DtrEnable = false;
-        _serialPort.RtsEnable = false;
-      }
-      catch (Exception ex)
-      {
-        _logger.LogDebug("Could not explicitly set DTR/RTS: {Error}", ex.Message);
-      }
+      // Use gentle connection approach - check if port is already in use
+      await ConnectWithRetryAsync(portName);
 
       // Start reading incoming data from ESP32
       StartReadingIncomingData();
@@ -175,6 +173,77 @@ public class SerialCommunicator : IDisposable
       _serialPort?.Dispose();
       _serialPort = null;
       throw;
+    }
+  }
+
+  private async Task ConnectWithRetryAsync(string portName)
+  {
+    const int maxRetries = 3;
+    const int retryDelayMs = 100;
+
+    if (_serialPort == null)
+    {
+      throw new InvalidOperationException("Serial port not initialized");
+    }
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
+    {
+      try
+      {
+        // Check if another process is using the port
+        var existingPorts = SerialPort.GetPortNames();
+        if (!existingPorts.Contains(portName))
+        {
+          throw new InvalidOperationException($"Port {portName} not available");
+        }
+
+        // Attempt to open with minimal disturbance
+        _serialPort!.Open();
+
+        // Explicitly ensure DTR/RTS are false after opening
+        await Task.Delay(50); // Small delay for port stabilization
+        
+        try
+        {
+          _serialPort.DtrEnable = false;
+          _serialPort.RtsEnable = false;
+        }
+        catch (Exception ex)
+        {
+          _logger.LogDebug("Could not explicitly set DTR/RTS: {Error}", ex.Message);
+        }
+
+        _logger.LogDebug("Successfully connected to {Port} on attempt {Attempt}", portName, attempt);
+        return; // Success!
+      }
+      catch (Exception ex) when (attempt < maxRetries)
+      {
+        _logger.LogDebug("Connection attempt {Attempt} failed: {Error}. Retrying...", attempt, ex.Message);
+        
+        // Close and dispose if partially opened
+        try
+        {
+          _serialPort?.Close();
+        }
+        catch { }
+
+        // Wait before retry
+        await Task.Delay(retryDelayMs * attempt);
+      }
+    }
+
+    // Final attempt - let exceptions bubble up
+    _serialPort!.Open();
+    
+    await Task.Delay(50);
+    try
+    {
+      _serialPort.DtrEnable = false;
+      _serialPort.RtsEnable = false;
+    }
+    catch (Exception ex)
+    {
+      _logger.LogDebug("Could not explicitly set DTR/RTS on final attempt: {Error}", ex.Message);
     }
   }
 
