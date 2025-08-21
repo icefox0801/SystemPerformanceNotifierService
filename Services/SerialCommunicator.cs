@@ -202,7 +202,7 @@ public class SerialCommunicator : IDisposable
 
         // Explicitly ensure DTR/RTS are false after opening
         await Task.Delay(50); // Small delay for port stabilization
-        
+
         try
         {
           _serialPort.DtrEnable = false;
@@ -219,7 +219,7 @@ public class SerialCommunicator : IDisposable
       catch (Exception ex) when (attempt < maxRetries)
       {
         _logger.LogDebug("Connection attempt {Attempt} failed: {Error}. Retrying...", attempt, ex.Message);
-        
+
         // Close and dispose if partially opened
         try
         {
@@ -234,7 +234,7 @@ public class SerialCommunicator : IDisposable
 
     // Final attempt - let exceptions bubble up
     _serialPort!.Open();
-    
+
     await Task.Delay(50);
     try
     {
