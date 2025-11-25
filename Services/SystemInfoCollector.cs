@@ -12,6 +12,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
   private PerformanceCounter? _cpuCounter;
   private PerformanceCounter? _ramCounter;
   private PerformanceCounter? _cpuIdleCounter;
+  private PerformanceCounter? _cpuTempCounter;
   private int _debugLogCount = 0;
   private bool _disposed = false;
 
@@ -29,7 +30,12 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
         IsCpuEnabled = true,
         IsGpuEnabled = true,
         IsMemoryEnabled = true,
-        IsMotherboardEnabled = true
+        IsMotherboardEnabled = true,
+        IsControllerEnabled = true,
+        IsNetworkEnabled = false,  // Skip network to reduce overhead
+        IsStorageEnabled = false,   // Skip storage to reduce overhead
+        IsPsuEnabled = true,        // Enable PSU for power sensors
+        IsBatteryEnabled = false    // Skip battery for desktop
       };
       _computer.Open();
 
@@ -37,9 +43,27 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       _cpuIdleCounter = new PerformanceCounter("Processor", "% Idle Time", "_Total");
       _ramCounter = new PerformanceCounter("Memory", "Available MBytes");
 
+      // Try to initialize CPU temperature counter (Windows thermal zone)
+      try
+      {
+        // Get first available thermal zone
+        var category = new PerformanceCounterCategory("Thermal Zone Information");
+        var instances = category.GetInstanceNames();
+        if (instances.Length > 0)
+        {
+          _cpuTempCounter = new PerformanceCounter("Thermal Zone Information", "Temperature", instances[0]);
+          _logger.LogInformation("Windows thermal zone temperature counter initialized: {Instance}", instances[0]);
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogWarning(ex, "Failed to initialize Windows thermal zone temperature counter");
+      }
+
       // Warm up Performance Counters - this is crucial for accuracy
       _cpuCounter.NextValue();
       _cpuIdleCounter.NextValue();
+      _cpuTempCounter?.NextValue();
 
       // Wait 1 second for counters to stabilize (Task Manager does this)
       await Task.Delay(1000);
@@ -47,6 +71,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // Second read to get baseline
       _cpuCounter.NextValue();
       _cpuIdleCounter.NextValue();
+      _cpuTempCounter?.NextValue();
 
       _logger.LogInformation("System info collector initialized successfully");
     }
@@ -138,8 +163,8 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
 
           if (_debugLogCount < 2)
           {
-            _logger.LogInformation("Hardware: {Name} ({Type}), Sensors: {Count}",
-                hardware.Name, hardware.HardwareType, hardware.Sensors.Count());
+            _logger.LogInformation("Hardware: {Name} ({Type}), Sensors: {Count}, SubHardware: {SubCount}",
+                hardware.Name, hardware.HardwareType, hardware.Sensors.Count(), hardware.SubHardware.Count());
           }
 
           // Get CPU name from CPU hardware
@@ -148,51 +173,21 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
             cpuInfo.Name = TruncateString(hardware.Name, 35);
           }
 
-          // Look for temperature and fan sensors in ALL hardware types
-          foreach (var sensor in hardware.Sensors)
+          // Process main hardware sensors
+          ProcessHardwareSensors(hardware, cpuInfo, hardware.HardwareType);
+
+          // Process sub-hardware sensors (critical for modern CPUs/motherboards)
+          foreach (var subHardware in hardware.SubHardware)
           {
+            subHardware.Update();
+
             if (_debugLogCount < 2)
             {
-              _logger.LogInformation("  Sensor: {Name}, Type: {Type}, Value: {Value} ({Hardware})",
-                  sensor.Name, sensor.SensorType, sensor.Value, hardware.HardwareType);
+              _logger.LogInformation("  SubHardware: {Name} ({Type}), Sensors: {Count}",
+                  subHardware.Name, subHardware.HardwareType, subHardware.Sensors.Count());
             }
 
-            if (sensor.SensorType == SensorType.Temperature && sensor.Value.HasValue)
-            {
-              // Look for CPU temperature sensors with broader pattern matching
-              var sensorName = sensor.Name.ToLower();
-              if (sensorName.Contains("cpu") ||
-                  sensorName.Contains("core") ||
-                  sensorName.Contains("package") ||
-                  sensorName.Contains("tctl") ||
-                  sensorName.Contains("tdie") ||
-                  sensorName.Contains("processor") ||
-                  (hardware.HardwareType == HardwareType.Cpu && sensor.SensorType == SensorType.Temperature))
-              {
-                cpuInfo.Temperature = Math.Max(cpuInfo.Temperature, (int)Math.Round(sensor.Value.Value));
-                if (_debugLogCount < 5)
-                {
-                  _logger.LogInformation("Found CPU temperature sensor: {SensorName} = {Value}°C", sensor.Name, sensor.Value.Value);
-                }
-              }
-            }
-            else if (sensor.SensorType == SensorType.Fan && sensor.Value.HasValue)
-            {
-              // Look for CPU fan sensors with broader pattern matching
-              var sensorName = sensor.Name.ToLower();
-              if (sensorName.Contains("cpu") ||
-                  sensorName.Contains("fan #1") ||
-                  sensorName.Contains("fan1") ||
-                  sensorName.Contains("system fan #1") ||
-                  (hardware.HardwareType == HardwareType.Motherboard && sensorName.Contains("fan")))
-              {
-                cpuInfo.FanSpeed = (int)Math.Round(sensor.Value.Value);
-                if (_debugLogCount < 5)
-                {
-                  _logger.LogInformation("Found CPU fan sensor: {SensorName} = {Value} RPM", sensor.Name, sensor.Value.Value);
-                }
-              }
-            }
+            ProcessHardwareSensors(subHardware, cpuInfo, hardware.HardwareType);
           }
         }
       }
@@ -200,7 +195,34 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // If LibreHardwareMonitor failed to get temperature, try WMI as fallback for newer Intel CPUs
       if (cpuInfo.Temperature == 0)
       {
+        _logger.LogWarning("CPU temperature not found via LibreHardwareMonitor. Attempting WMI fallback for Intel Core Ultra 7 265K...");
         await TryGetCpuTemperatureFromWMI(cpuInfo);
+
+        // If still no temperature, try Windows Performance Counter thermal zone
+        if (cpuInfo.Temperature == 0 && _cpuTempCounter != null)
+        {
+          try
+          {
+            var thermalReading = _cpuTempCounter.NextValue();
+            // Windows Performance Counter thermal zone returns temperature in Kelvin (not tenths like WMI)
+            // Convert: value - 273.15 = Celsius
+            var tempCelsius = thermalReading - 273.15f;
+            if (tempCelsius > 0 && tempCelsius < 150)
+            {
+              cpuInfo.Temperature = (int)Math.Round(tempCelsius);
+              _logger.LogInformation("✓ CPU temperature from Windows thermal zone: {Temp}°C", cpuInfo.Temperature);
+            }
+          }
+          catch (Exception ex)
+          {
+            _logger.LogWarning(ex, "Failed to read Windows thermal zone temperature");
+          }
+        }
+
+        if (cpuInfo.Temperature == 0)
+        {
+          _logger.LogWarning("CPU temperature unavailable via all methods. Intel Core Ultra 7 265K thermal sensors may not be supported yet.");
+        }
       }
 
       // If LibreHardwareMonitor failed to get fan speed, try WMI as fallback
@@ -215,6 +237,69 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     }
 
     await Task.CompletedTask;
+  }
+
+  private void ProcessHardwareSensors(IHardware hardware, CpuInfo cpuInfo, HardwareType parentType)
+  {
+    // Look for temperature and fan sensors
+    foreach (var sensor in hardware.Sensors)
+    {
+      if (_debugLogCount < 2)
+      {
+        _logger.LogInformation("    Sensor: {Name}, Type: {Type}, Value: {Value} ({Hardware})",
+            sensor.Name, sensor.SensorType, sensor.Value, hardware.HardwareType);
+      }
+
+      if (sensor.SensorType == SensorType.Temperature && sensor.Value.HasValue)
+      {
+        // Look for CPU temperature sensors with specific pattern matching
+        // Exclude GPU sensors explicitly to avoid confusion
+        var sensorName = sensor.Name.ToLower();
+        var isGpuSensor = sensorName.Contains("gpu");
+
+        // Be more aggressive in finding CPU temperature
+        // Check for common CPU temperature sensor names across all hardware types
+        if (!isGpuSensor && (
+            sensorName.Contains("cpu") ||
+            sensorName.Contains("package") ||
+            sensorName.Contains("tctl") ||
+            sensorName.Contains("tdie") ||
+            sensorName.Contains("processor") ||
+            sensorName.Contains("socket") ||
+            // Allow "core" only from CPU hardware to avoid GPU Core confusion
+            (sensorName.Contains("core") && (hardware.HardwareType == HardwareType.Cpu || parentType == HardwareType.Cpu)) ||
+            // For motherboards, accept temperature sensors from controller/super I/O chips
+            (hardware.HardwareType == HardwareType.Motherboard && sensorName.Contains("temp")) ||
+            // Accept any temperature sensor directly from CPU hardware
+            (hardware.HardwareType == HardwareType.Cpu && sensor.SensorType == SensorType.Temperature)))
+        {
+          cpuInfo.Temperature = Math.Max(cpuInfo.Temperature, (int)Math.Round(sensor.Value.Value));
+          if (_debugLogCount < 5)
+          {
+            _logger.LogInformation("Found CPU temperature sensor: {SensorName} = {Value}°C from {HardwareType}",
+              sensor.Name, sensor.Value.Value, hardware.HardwareType);
+          }
+        }
+      }
+      else if (sensor.SensorType == SensorType.Fan && sensor.Value.HasValue)
+      {
+        // Look for CPU fan sensors with broader pattern matching
+        var sensorName = sensor.Name.ToLower();
+        if (sensorName.Contains("cpu") ||
+            sensorName.Contains("fan #1") ||
+            sensorName.Contains("fan1") ||
+            sensorName.Contains("system fan #1") ||
+            (hardware.HardwareType == HardwareType.Motherboard && sensorName.Contains("fan")))
+        {
+          cpuInfo.FanSpeed = (int)Math.Round(sensor.Value.Value);
+          if (_debugLogCount < 5)
+          {
+            _logger.LogInformation("Found CPU fan sensor: {SensorName} = {Value} RPM from {HardwareType}",
+              sensor.Name, sensor.Value.Value, hardware.HardwareType);
+          }
+        }
+      }
+    }
   }
 
   private async Task CollectGpuInfoAsync(GpuInfo gpuInfo)
@@ -342,9 +427,12 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
   {
     try
     {
+      _logger.LogDebug("Attempting WMI ACPI Thermal Zone query...");
       // Try Windows Management Instrumentation for newer Intel CPUs
       using var searcher = new ManagementObjectSearcher(@"root\wmi", "SELECT * FROM MSAcpi_ThermalZoneTemperature");
       var collection = searcher.Get();
+
+      _logger.LogDebug("Found {Count} thermal zones via WMI", collection.Count);
 
       if (collection.Count > 0)
       {
@@ -354,10 +442,12 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
           // Convert from tenths of Kelvin to Celsius
           var tempCelsius = (temp / 10.0) - 273.15;
 
+          _logger.LogDebug("Thermal zone temperature: {Temp}°C (raw: {Raw})", tempCelsius, temp);
+
           if (tempCelsius > 0 && tempCelsius < 150) // Reasonable temperature range
           {
             cpuInfo.Temperature = Math.Max(cpuInfo.Temperature, (int)Math.Round(tempCelsius));
-            _logger.LogDebug("Found CPU temperature via WMI: {Temp}°C", tempCelsius);
+            _logger.LogInformation("Found CPU temperature via WMI ACPI: {Temp}°C", tempCelsius);
             break;
           }
         }
@@ -380,14 +470,19 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
   {
     try
     {
+      _logger.LogDebug("Attempting Intel-specific WMI thermal query...");
       // Try Intel-specific thermal sensors
       using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PerfRawData_Counters_ThermalZoneInformation");
       var collection = searcher.Get();
+
+      _logger.LogDebug("Found {Count} Intel thermal zones", collection.Count);
 
       foreach (var obj in collection)
       {
         var name = obj["Name"]?.ToString();
         var temp = obj["Temperature"];
+
+        _logger.LogDebug("Intel thermal zone: {Name}, Temp: {Temp}", name, temp);
 
         if (name != null && temp != null && name.Contains("CPU", StringComparison.OrdinalIgnoreCase))
         {
@@ -395,7 +490,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
           if (tempValue > 0 && tempValue < 150)
           {
             cpuInfo.Temperature = (int)Math.Round(tempValue);
-            _logger.LogDebug("Found CPU temperature via Intel WMI: {Temp}°C", tempValue);
+            _logger.LogInformation("Found CPU temperature via Intel WMI: {Temp}°C", tempValue);
             break;
           }
         }
@@ -491,6 +586,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       _cpuCounter?.Dispose();
       _cpuIdleCounter?.Dispose();
       _ramCounter?.Dispose();
+      _cpuTempCounter?.Dispose();
       _disposed = true;
     }
   }
