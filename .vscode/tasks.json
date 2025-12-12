@@ -134,6 +134,27 @@
         "cwd": "${workspaceFolder}"
       },
       "problemMatcher": []
+    },
+    {
+      "label": "Run as Admin",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/Scripts/run-elevated.ps1"
+      ],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": []
     }
   ]
 }
