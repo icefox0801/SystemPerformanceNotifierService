@@ -775,7 +775,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       {
         // Based on logs, AIDA64 WMI returns a collection of objects, each representing a sensor
         // Each object has properties: ID, Label, Value, Type
-        
+
         var id = obj["ID"]?.ToString();
         var valueStr = obj["Value"]?.ToString();
         var label = obj["Label"]?.ToString();
@@ -784,23 +784,23 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
 
         if (double.TryParse(valueStr, out double doubleVal))
         {
-            // CPU Temperature
-            if (id.Equals("TCPU", StringComparison.OrdinalIgnoreCase) ||
-                id.Equals("TemperatureCPU", StringComparison.OrdinalIgnoreCase))
-            {
-              cpuInfo.Temperature = (int)Math.Round(doubleVal);
-            }
-            // Fallback to Core 1
-            else if (cpuInfo.Temperature == 0 && id.StartsWith("TCore", StringComparison.OrdinalIgnoreCase))
-            {
-               cpuInfo.Temperature = (int)Math.Round(doubleVal);
-            }
+          // CPU Temperature
+          if (id.Equals("TCPU", StringComparison.OrdinalIgnoreCase) ||
+              id.Equals("TemperatureCPU", StringComparison.OrdinalIgnoreCase))
+          {
+            cpuInfo.Temperature = (int)Math.Round(doubleVal);
+          }
+          // Fallback to Core 1
+          else if (cpuInfo.Temperature == 0 && id.StartsWith("TCore", StringComparison.OrdinalIgnoreCase))
+          {
+            cpuInfo.Temperature = (int)Math.Round(doubleVal);
+          }
 
-            // CPU Fan
-            if (cpuInfo.FanSpeed == 0 && (id.Equals("FCPU", StringComparison.OrdinalIgnoreCase) || id.Equals("FanCPU", StringComparison.OrdinalIgnoreCase)))
-            {
-              cpuInfo.FanSpeed = (int)Math.Round(doubleVal);
-            }
+          // CPU Fan
+          if (cpuInfo.FanSpeed == 0 && (id.Equals("FCPU", StringComparison.OrdinalIgnoreCase) || id.Equals("FanCPU", StringComparison.OrdinalIgnoreCase)))
+          {
+            cpuInfo.FanSpeed = (int)Math.Round(doubleVal);
+          }
         }
       }
     }
