@@ -766,11 +766,11 @@ function Start-SystemDiagnostics {
   # System resources (if not quick mode)
   if (-not $Quick) {
     try {
-      $cpu = Get-WmiObject -Class Win32_Processor | Measure-Object -Property LoadPercentage -Average
+      $cpu = Get-CimInstance -ClassName Win32_Processor | Measure-Object -Property LoadPercentage -Average
       $cpuUsage = [math]::Round($cpu.Average, 1)
       Write-Status "CPU Usage: $cpuUsage%" "SUCCESS"
       
-      $memory = Get-WmiObject -Class Win32_OperatingSystem
+      $memory = Get-CimInstance -ClassName Win32_OperatingSystem
       $memUsed = ($memory.TotalVisibleMemorySize - $memory.FreePhysicalMemory) / 1MB
       $memTotal = $memory.TotalVisibleMemorySize / 1MB
       $memPercent = [math]::Round(($memUsed / $memTotal) * 100, 1)
