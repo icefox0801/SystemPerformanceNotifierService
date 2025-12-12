@@ -84,9 +84,9 @@ function Wait-ForKeyPress {
 #region Service Operations
 
 function Install-SystemService {
-  param([switch]$RequireAdmin = $true)
+  param([switch]$SkipAdminCheck)
   
-  if ($RequireAdmin -and -not (Test-Administrator)) {
+  if (-not $SkipAdminCheck -and -not (Test-Administrator)) {
     Request-Elevation "install $(if($SkipBuild){'-SkipBuild'})"
   }
   
@@ -471,14 +471,14 @@ function Show-ServiceStatus {
       }
       
       if ($events) {
-        foreach ($event in $events) {
-          $level = switch ($event.LevelDisplayName) {
+        foreach ($logEntry in $events) {
+          $level = switch ($logEntry.LevelDisplayName) {
             'Information' { 'Green' }
             'Warning' { 'Yellow' }
             'Error' { 'Red' }
             default { 'White' }
           }
-          Write-Host "$($event.TimeCreated.ToString('MM-dd HH:mm:ss')) - $($event.LevelDisplayName): $($event.Message -replace $script:ServiceName, 'Service')" -ForegroundColor $level
+          Write-Host "$($logEntry.TimeCreated.ToString('MM-dd HH:mm:ss')) - $($logEntry.LevelDisplayName): $($logEntry.Message -replace $script:ServiceName, 'Service')" -ForegroundColor $level
         }
       }
       else {
@@ -523,14 +523,14 @@ function Show-ServiceLogs {
           $_.Message -match $script:ServiceName
         }
         
-        foreach ($event in $newEvents) {
-          $time = $event.TimeCreated.ToString('HH:mm:ss')
-          $color = switch ($event.LevelDisplayName) {
+        foreach ($logEntry in $newEvents) {
+          $time = $logEntry.TimeCreated.ToString('HH:mm:ss')
+          $color = switch ($logEntry.LevelDisplayName) {
             'Error' { 'Red' }
             'Warning' { 'Yellow' }
             default { 'Green' }
           }
-          Write-Host "$time [LIVE] $($event.Message)" -ForegroundColor $color
+          Write-Host "$time [LIVE] $($logEntry.Message)" -ForegroundColor $color
         }
         
         $lastEventTime = Get-Date
@@ -583,16 +583,16 @@ function Show-ServiceLogs {
     } | Sort-Object TimeCreated -Descending
     
     if ($events) {
-      foreach ($event in $events) {
-        $color = switch ($event.LevelDisplayName) {
+      foreach ($logEntry in $events) {
+        $color = switch ($logEntry.LevelDisplayName) {
           'Error' { 'Red' }
           'Warning' { 'Yellow' }
           'Information' { 'Green' }
           default { 'White' }
         }
         
-        $time = $event.TimeCreated.ToString('MM-dd HH:mm:ss')
-        Write-Host "$time [$($event.LevelDisplayName.PadRight(11))] $($event.Message.Split("`n")[0])" -ForegroundColor $color
+        $time = $logEntry.TimeCreated.ToString('MM-dd HH:mm:ss')
+        Write-Host "$time [$($logEntry.LevelDisplayName.PadRight(11))] $($logEntry.Message.Split("`n")[0])" -ForegroundColor $color
       }
     }
     else {
