@@ -657,7 +657,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     }
   }
 
-  private async Task TryAlternativeFanWMI(CpuInfo cpuInfo)
+  private Task TryAlternativeFanWMI(CpuInfo cpuInfo)
   {
     try
     {
@@ -690,10 +690,10 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       _logger.LogDebug(ex, "Alternative fan WMI query failed");
     }
 
-    await Task.CompletedTask;
+    return Task.CompletedTask;
   }
 
-  private async Task TryGetFromAida64SharedMemory(CpuInfo cpuInfo)
+  private Task TryGetFromAida64SharedMemory(CpuInfo cpuInfo)
   {
     try
     {
@@ -713,7 +713,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       }
 
       var xmlContent = sb.ToString();
-      if (string.IsNullOrWhiteSpace(xmlContent)) return;
+      if (string.IsNullOrWhiteSpace(xmlContent)) return Task.CompletedTask;
 
       // Parse XML: <root><sys><id>TCPU</id><label>CPU</label><value>34</value></sys>...</root>
       // Note: AIDA64 XML might not have a root element, it's often just a list of tags?
@@ -722,32 +722,35 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // So we wrap it in a root for parsing
       var xDoc = XDocument.Parse($"<root>{xmlContent}</root>");
 
-      foreach (var element in xDoc.Root.Elements("sys"))
+      if (xDoc.Root != null)
       {
-        var id = element.Element("id")?.Value;
-        var valueStr = element.Element("value")?.Value;
-        var label = element.Element("label")?.Value;
-
-        if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(valueStr)) continue;
-
-        if (double.TryParse(valueStr, out double doubleVal))
+        foreach (var element in xDoc.Root.Elements("sys"))
         {
-          // CPU Temperature
-          if (id.Equals("TCPU", StringComparison.OrdinalIgnoreCase) ||
-              id.Equals("TemperatureCPU", StringComparison.OrdinalIgnoreCase))
-          {
-            cpuInfo.Temperature = (int)Math.Round(doubleVal);
-          }
-          // Fallback to Core 1
-          else if (cpuInfo.Temperature == 0 && id.StartsWith("TCore", StringComparison.OrdinalIgnoreCase))
-          {
-            cpuInfo.Temperature = (int)Math.Round(doubleVal);
-          }
+          var id = element.Element("id")?.Value;
+          var valueStr = element.Element("value")?.Value;
+          var label = element.Element("label")?.Value;
 
-          // CPU Fan
-          if (cpuInfo.FanSpeed == 0 && (id.Equals("FCPU", StringComparison.OrdinalIgnoreCase) || id.Equals("FanCPU", StringComparison.OrdinalIgnoreCase)))
+          if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(valueStr)) continue;
+
+          if (double.TryParse(valueStr, out double doubleVal))
           {
-            cpuInfo.FanSpeed = (int)Math.Round(doubleVal);
+            // CPU Temperature
+            if (id.Equals("TCPU", StringComparison.OrdinalIgnoreCase) ||
+                id.Equals("TemperatureCPU", StringComparison.OrdinalIgnoreCase))
+            {
+              cpuInfo.Temperature = (int)Math.Round(doubleVal);
+            }
+            // Fallback to Core 1
+            else if (cpuInfo.Temperature == 0 && id.StartsWith("TCore", StringComparison.OrdinalIgnoreCase))
+            {
+              cpuInfo.Temperature = (int)Math.Round(doubleVal);
+            }
+
+            // CPU Fan
+            if (cpuInfo.FanSpeed == 0 && (id.Equals("FCPU", StringComparison.OrdinalIgnoreCase) || id.Equals("FanCPU", StringComparison.OrdinalIgnoreCase)))
+            {
+              cpuInfo.FanSpeed = (int)Math.Round(doubleVal);
+            }
           }
         }
       }
@@ -760,9 +763,10 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     {
       _logger.LogDebug(ex, "Error reading AIDA64 Shared Memory");
     }
+    return Task.CompletedTask;
   }
 
-  private async Task TryGetFromAida64Wmi(CpuInfo cpuInfo)
+  private Task TryGetFromAida64Wmi(CpuInfo cpuInfo)
   {
     try
     {
@@ -809,6 +813,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // Just debug log, as AIDA64 might not be running or WMI might not be enabled
       _logger.LogDebug("AIDA64 WMI query failed (AIDA64 might not be running or WMI disabled): {Message}", ex.Message);
     }
+    return Task.CompletedTask;
   }
 
   public void Dispose()
