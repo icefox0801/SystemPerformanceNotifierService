@@ -2,6 +2,10 @@ using LibreHardwareMonitor.Hardware;
 using SystemPerformanceNotifierService.Models;
 using System.Diagnostics;
 using System.Management;
+using System.Security.Principal;
+using System.IO.MemoryMappedFiles;
+using System.Xml.Linq;
+using System.Text;
 
 namespace SystemPerformanceNotifierService.Services;
 
@@ -15,16 +19,34 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
   private PerformanceCounter? _cpuTempCounter;
   private int _debugLogCount = 0;
   private bool _disposed = false;
+  private bool _isAdmin = false;
 
   public SystemInfoCollector(ILogger<SystemInfoCollector> logger)
   {
     _logger = logger;
+    _isAdmin = IsAdministrator();
+  }
+
+  private static bool IsAdministrator()
+  {
+    using var identity = WindowsIdentity.GetCurrent();
+    var principal = new WindowsPrincipal(identity);
+    return principal.IsInRole(WindowsBuiltInRole.Administrator);
   }
 
   public async Task InitializeAsync()
   {
     try
     {
+      if (!_isAdmin)
+      {
+        _logger.LogWarning("Application is NOT running as Administrator. CPU temperature and fan speed monitoring will likely fail or be inaccurate.");
+      }
+      else
+      {
+        _logger.LogInformation("Application is running as Administrator. Full hardware access enabled.");
+      }
+
       _computer = new Computer
       {
         IsCpuEnabled = true,
@@ -156,6 +178,8 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       // Get CPU info from LibreHardwareMonitor - check ALL hardware types for sensors
       if (_computer != null)
       {
+        var tempSensors = new List<(string Name, float Value, string HardwareType)>();
+
         // First pass: Get CPU name and find temperature/fan sensors across all hardware
         foreach (var hardware in _computer.Hardware)
         {
@@ -174,7 +198,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
           }
 
           // Process main hardware sensors
-          ProcessHardwareSensors(hardware, cpuInfo, hardware.HardwareType);
+          ProcessHardwareSensors(hardware, cpuInfo, hardware.HardwareType, tempSensors);
 
           // Process sub-hardware sensors (critical for modern CPUs/motherboards)
           foreach (var subHardware in hardware.SubHardware)
@@ -187,15 +211,84 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
                   subHardware.Name, subHardware.HardwareType, subHardware.Sensors.Count());
             }
 
-            ProcessHardwareSensors(subHardware, cpuInfo, hardware.HardwareType);
+            ProcessHardwareSensors(subHardware, cpuInfo, hardware.HardwareType, tempSensors);
           }
         }
+
+        // Determine best CPU temperature from collected sensors
+        if (tempSensors.Any())
+        {
+          // Priority 1: Core Average (Often closer to socket temp than Package temp)
+          var bestSensor = tempSensors.FirstOrDefault(s => s.Name.Contains("Core Average", StringComparison.OrdinalIgnoreCase));
+
+          // Priority 2: CPU Package (Standard internal temp)
+          if (bestSensor == default)
+            bestSensor = tempSensors.FirstOrDefault(s => s.Name.Contains("CPU Package", StringComparison.OrdinalIgnoreCase));
+
+          // Priority 3: CPU Total or Tdie
+          if (bestSensor == default)
+            bestSensor = tempSensors.FirstOrDefault(s => s.Name.Contains("Total", StringComparison.OrdinalIgnoreCase) || s.Name.Contains("Tdie", StringComparison.OrdinalIgnoreCase));
+
+          // Priority 4: CPU Total or Tdie
+          if (bestSensor == default)
+            bestSensor = tempSensors.FirstOrDefault(s => s.Name.Contains("Total", StringComparison.OrdinalIgnoreCase) || s.Name.Contains("Tdie", StringComparison.OrdinalIgnoreCase));
+
+          // Priority 5: Max of any "Core" sensor (if we have individual cores but no package)
+          if (bestSensor == default)
+          {
+            var maxCore = tempSensors
+               .Where(s => s.Name.Contains("Core", StringComparison.OrdinalIgnoreCase))
+               .OrderByDescending(s => s.Value)
+               .FirstOrDefault();
+            if (maxCore != default) bestSensor = maxCore;
+          }
+
+          // Fallback: Max of whatever we found
+          if (bestSensor == default)
+          {
+            bestSensor = tempSensors.OrderByDescending(s => s.Value).First();
+          }
+
+          cpuInfo.Temperature = (int)Math.Round(bestSensor.Value);
+          if (_debugLogCount < 5)
+          {
+            _logger.LogInformation("Selected CPU Temp Sensor: {Name} = {Value} ({Type})", bestSensor.Name, bestSensor.Value, bestSensor.HardwareType);
+          }
+        }
+      }
+
+      // Try AIDA64 Shared Memory (Most reliable for AIDA64)
+      // We prioritize AIDA64 if available, as requested by user
+      await TryGetFromAida64SharedMemory(cpuInfo);
+
+      // Try AIDA64 WMI as a high-priority fallback (since user has AIDA64)
+      if (cpuInfo.Temperature == 0 || cpuInfo.FanSpeed == 0)
+      {
+        await TryGetFromAida64Wmi(cpuInfo);
       }
 
       // If LibreHardwareMonitor failed to get temperature, try WMI as fallback for newer Intel CPUs
       if (cpuInfo.Temperature == 0)
       {
-        _logger.LogWarning("CPU temperature not found via LibreHardwareMonitor. Attempting WMI fallback for Intel Core Ultra 7 265K...");
+        // Check if we found any sensors at all - if not, it's likely a permission issue
+        bool anySensorsFound = _computer?.Hardware.Any(h => h.Sensors.Length > 0) ?? false;
+
+        // Check specifically for Motherboard sensors (Super I/O)
+        var mobo = _computer?.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.Motherboard);
+        if (mobo != null && mobo.Sensors.Length == 0)
+        {
+          _logger.LogWarning("Motherboard detected ({Name}) but no sensors found. Super I/O driver (WinRing0) may be blocked by Windows Security or chipset is unsupported.", mobo.Name);
+        }
+
+        if (!anySensorsFound)
+        {
+          _logger.LogWarning("No hardware sensors found. Please run the application as Administrator to access CPU temperature and Fan speed.");
+        }
+        else
+        {
+          _logger.LogWarning("CPU temperature not found via LibreHardwareMonitor. Attempting WMI fallback...");
+        }
+
         await TryGetCpuTemperatureFromWMI(cpuInfo);
 
         // If still no temperature, try Windows Performance Counter thermal zone
@@ -230,6 +323,10 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
       {
         await TryGetCpuFanSpeedFromWMI(cpuInfo);
       }
+
+      // Log CPU temperature information
+      _logger.LogInformation("CPU Temperature: {CpuTemp}°C | CPU Usage: {CpuUsage}% | Fan Speed: {FanSpeed} RPM | {CpuName}",
+        cpuInfo.Temperature, cpuInfo.Usage, cpuInfo.FanSpeed, cpuInfo.Name);
     }
     catch (Exception ex)
     {
@@ -239,7 +336,7 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     await Task.CompletedTask;
   }
 
-  private void ProcessHardwareSensors(IHardware hardware, CpuInfo cpuInfo, HardwareType parentType)
+  private void ProcessHardwareSensors(IHardware hardware, CpuInfo cpuInfo, HardwareType parentType, List<(string Name, float Value, string HardwareType)> tempSensors)
   {
     // Look for temperature and fan sensors
     foreach (var sensor in hardware.Sensors)
@@ -256,10 +353,11 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
         // Exclude GPU sensors explicitly to avoid confusion
         var sensorName = sensor.Name.ToLower();
         var isGpuSensor = sensorName.Contains("gpu");
+        var isDistanceSensor = sensorName.Contains("distance") || sensorName.Contains("tjmax");
 
         // Be more aggressive in finding CPU temperature
         // Check for common CPU temperature sensor names across all hardware types
-        if (!isGpuSensor && (
+        if (!isGpuSensor && !isDistanceSensor && (
             sensorName.Contains("cpu") ||
             sensorName.Contains("package") ||
             sensorName.Contains("tctl") ||
@@ -268,15 +366,17 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
             sensorName.Contains("socket") ||
             // Allow "core" only from CPU hardware to avoid GPU Core confusion
             (sensorName.Contains("core") && (hardware.HardwareType == HardwareType.Cpu || parentType == HardwareType.Cpu)) ||
-            // For motherboards, accept temperature sensors from controller/super I/O chips
-            (hardware.HardwareType == HardwareType.Motherboard && sensorName.Contains("temp")) ||
+            // For motherboards and SuperIO, accept temperature sensors
+            ((hardware.HardwareType == HardwareType.Motherboard || hardware.HardwareType == HardwareType.SuperIO) &&
+             (sensorName.Contains("temp") || sensorName.Contains("cpu"))) ||
             // Accept any temperature sensor directly from CPU hardware
             (hardware.HardwareType == HardwareType.Cpu && sensor.SensorType == SensorType.Temperature)))
         {
-          cpuInfo.Temperature = Math.Max(cpuInfo.Temperature, (int)Math.Round(sensor.Value.Value));
+          tempSensors.Add((sensor.Name, sensor.Value.Value, hardware.HardwareType.ToString()));
+
           if (_debugLogCount < 5)
           {
-            _logger.LogInformation("Found CPU temperature sensor: {SensorName} = {Value}°C from {HardwareType}",
+            _logger.LogInformation("Found CPU temperature candidate: {SensorName} = {Value}°C from {HardwareType}",
               sensor.Name, sensor.Value.Value, hardware.HardwareType);
           }
         }
@@ -373,6 +473,10 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
           }
         }
       }
+
+      // Log GPU temperature information
+      _logger.LogInformation("GPU Temperature: {GpuTemp}°C | GPU Usage: {GpuUsage}% | Memory: {MemUsed}/{MemTotal} MB | {GpuName}",
+        gpuInfo.Temperature, gpuInfo.Usage, gpuInfo.MemoryUsed, gpuInfo.MemoryTotal, gpuInfo.Name);
     }
     catch (Exception ex)
     {
@@ -446,9 +550,20 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
 
           if (tempCelsius > 0 && tempCelsius < 150) // Reasonable temperature range
           {
+            // Keep the maximum temperature found across all thermal zones
+            // This is safer as some zones might be ambient/chassis
+            var oldTemp = cpuInfo.Temperature;
             cpuInfo.Temperature = Math.Max(cpuInfo.Temperature, (int)Math.Round(tempCelsius));
-            _logger.LogInformation("Found CPU temperature via WMI ACPI: {Temp}°C", tempCelsius);
-            break;
+
+            if (cpuInfo.Temperature != oldTemp)
+            {
+              _logger.LogInformation("Found higher CPU temperature via WMI ACPI: {Temp}°C (was {OldTemp}°C)", tempCelsius, oldTemp);
+            }
+            else
+            {
+              _logger.LogDebug("Found CPU temperature via WMI ACPI: {Temp}°C", tempCelsius);
+            }
+            // Do NOT break, check all zones
           }
         }
       }
@@ -576,6 +691,124 @@ public class SystemInfoCollector : ISystemInfoCollector, IDisposable
     }
 
     await Task.CompletedTask;
+  }
+
+  private async Task TryGetFromAida64SharedMemory(CpuInfo cpuInfo)
+  {
+    try
+    {
+      // AIDA64 Shared Memory
+      // Map name: "AIDA64_SensorValues"
+      using var mmf = MemoryMappedFile.OpenExisting("AIDA64_SensorValues");
+      using var stream = mmf.CreateViewStream();
+      using var reader = new StreamReader(stream, Encoding.Default);
+
+      // Read the XML content (null-terminated string)
+      // We need to read until null terminator or end
+      var sb = new StringBuilder();
+      int ch;
+      while ((ch = reader.Read()) != -1 && ch != 0)
+      {
+        sb.Append((char)ch);
+      }
+
+      var xmlContent = sb.ToString();
+      if (string.IsNullOrWhiteSpace(xmlContent)) return;
+
+      // Parse XML: <root><sys><id>TCPU</id><label>CPU</label><value>34</value></sys>...</root>
+      // Note: AIDA64 XML might not have a root element, it's often just a list of tags?
+      // Actually, standard AIDA64 shared memory is usually:
+      // <sys><id>...</id><label>...</label><value>...</value></sys>...
+      // So we wrap it in a root for parsing
+      var xDoc = XDocument.Parse($"<root>{xmlContent}</root>");
+
+      foreach (var element in xDoc.Root.Elements("sys"))
+      {
+        var id = element.Element("id")?.Value;
+        var valueStr = element.Element("value")?.Value;
+        var label = element.Element("label")?.Value;
+
+        if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(valueStr)) continue;
+
+        if (double.TryParse(valueStr, out double doubleVal))
+        {
+          // CPU Temperature
+          if (id.Equals("TCPU", StringComparison.OrdinalIgnoreCase) ||
+              id.Equals("TemperatureCPU", StringComparison.OrdinalIgnoreCase))
+          {
+            cpuInfo.Temperature = (int)Math.Round(doubleVal);
+          }
+          // Fallback to Core 1
+          else if (cpuInfo.Temperature == 0 && id.StartsWith("TCore", StringComparison.OrdinalIgnoreCase))
+          {
+            cpuInfo.Temperature = (int)Math.Round(doubleVal);
+          }
+
+          // CPU Fan
+          if (cpuInfo.FanSpeed == 0 && (id.Equals("FCPU", StringComparison.OrdinalIgnoreCase) || id.Equals("FanCPU", StringComparison.OrdinalIgnoreCase)))
+          {
+            cpuInfo.FanSpeed = (int)Math.Round(doubleVal);
+          }
+        }
+      }
+    }
+    catch (FileNotFoundException)
+    {
+      // Shared memory not found (AIDA64 not running or Shared Memory not enabled)
+    }
+    catch (Exception ex)
+    {
+      _logger.LogDebug(ex, "Error reading AIDA64 Shared Memory");
+    }
+  }
+
+  private async Task TryGetFromAida64Wmi(CpuInfo cpuInfo)
+  {
+    try
+    {
+      // AIDA64 exposes sensor values via WMI if enabled in Preferences > External Applications
+      // Namespace: root\WMI, Class: AIDA64_SensorValues
+      using var searcher = new ManagementObjectSearcher(@"root\WMI", "SELECT * FROM AIDA64_SensorValues");
+      var collection = searcher.Get();
+
+      foreach (var obj in collection)
+      {
+        // Based on logs, AIDA64 WMI returns a collection of objects, each representing a sensor
+        // Each object has properties: ID, Label, Value, Type
+        
+        var id = obj["ID"]?.ToString();
+        var valueStr = obj["Value"]?.ToString();
+        var label = obj["Label"]?.ToString();
+
+        if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(valueStr)) continue;
+
+        if (double.TryParse(valueStr, out double doubleVal))
+        {
+            // CPU Temperature
+            if (id.Equals("TCPU", StringComparison.OrdinalIgnoreCase) ||
+                id.Equals("TemperatureCPU", StringComparison.OrdinalIgnoreCase))
+            {
+              cpuInfo.Temperature = (int)Math.Round(doubleVal);
+            }
+            // Fallback to Core 1
+            else if (cpuInfo.Temperature == 0 && id.StartsWith("TCore", StringComparison.OrdinalIgnoreCase))
+            {
+               cpuInfo.Temperature = (int)Math.Round(doubleVal);
+            }
+
+            // CPU Fan
+            if (cpuInfo.FanSpeed == 0 && (id.Equals("FCPU", StringComparison.OrdinalIgnoreCase) || id.Equals("FanCPU", StringComparison.OrdinalIgnoreCase)))
+            {
+              cpuInfo.FanSpeed = (int)Math.Round(doubleVal);
+            }
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      // Just debug log, as AIDA64 might not be running or WMI might not be enabled
+      _logger.LogDebug("AIDA64 WMI query failed (AIDA64 might not be running or WMI disabled): {Message}", ex.Message);
+    }
   }
 
   public void Dispose()
